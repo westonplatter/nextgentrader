@@ -1,0 +1,8 @@
+[project]
+name = "ngtrader"
+version = "0.1.0"
+description = "Review market price action, monitor portfolio strategies, and execute live trades with AI"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "BSD-3-Clause"
+dependencies = []
