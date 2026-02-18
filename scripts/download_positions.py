@@ -11,12 +11,12 @@ from datetime import datetime, timezone
 
 from dotenv import load_dotenv
 from ib_async import IB
-from sqlalchemy import inspect, text
+from sqlalchemy import inspect, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
 from src.db import get_engine
-from src.models import Position
+from src.models import Account, Position
 
 
 def load_env(env_name: str) -> None:
@@ -30,16 +30,33 @@ def check_db_ready(engine):
     """Check that the database and positions table exist."""
     try:
         inspector = inspect(engine)
-        if "positions" not in inspector.get_table_names():
-            print("Error: 'positions' table does not exist.")
-            print("Run: uv run python scripts/setup_db.py --env <env>")
-            raise SystemExit(1)
+        tables = inspector.get_table_names()
+        for required in ("positions", "accounts"):
+            if required not in tables:
+                print(f"Error: '{required}' table does not exist.")
+                print("Run: task migrate")
+                raise SystemExit(1)
     except Exception as e:
         if "does not exist" in str(e) or "could not connect" in str(e):
             print(f"Error: Cannot connect to database: {e}")
-            print("Run: uv run python scripts/setup_db.py --env <env>")
+            print("Run: task migrate")
             raise SystemExit(1)
         raise
+
+
+def get_or_create_accounts(session: Session, account_strings: set[str]) -> dict[str, int]:
+    """Get or create Account rows, return {account_str: account_id} mapping."""
+    lookup = {}
+    for acct_str in account_strings:
+        row = session.execute(
+            select(Account).where(Account.account == acct_str)
+        ).scalar_one_or_none()
+        if row is None:
+            row = Account(account=acct_str)
+            session.add(row)
+            session.flush()
+        lookup[acct_str] = row.id
+    return lookup
 
 
 def main():
@@ -71,10 +88,14 @@ def main():
         now = datetime.now(timezone.utc)
 
         with Session(engine) as session:
+            unique_accounts = {pos.account for pos in positions}
+            account_lookup = get_or_create_accounts(session, unique_accounts)
+
             for pos in positions:
                 contract = pos.contract
+                account_id = account_lookup[pos.account]
                 stmt = insert(Position).values(
-                    account=pos.account,
+                    account_id=account_id,
                     con_id=contract.conId,
                     symbol=contract.symbol,
                     sec_type=contract.secType,
@@ -91,7 +112,7 @@ def main():
                     avg_cost=pos.avgCost,
                     fetched_at=now,
                 ).on_conflict_do_update(
-                    constraint="uq_account_con_id",
+                    constraint="uq_account_id_con_id",
                     set_={
                         "symbol": contract.symbol,
                         "sec_type": contract.secType,

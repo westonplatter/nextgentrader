@@ -4,6 +4,10 @@
 
 This is a agentic project enabling one person to operate as an quick and nimble trading desk.
 
+## Docs Index Rule
+
+If any `docs/*.md` file is added, modified, renamed, or deleted (excluding `docs/_index.md`), update `docs/_index.md` in the same change.
+
 ## Python
 
 ### Verifying Code

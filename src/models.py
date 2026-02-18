@@ -10,14 +10,22 @@ class Base(DeclarativeBase):
     pass
 
 
+class Account(Base):
+    __tablename__ = "accounts"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    account: Mapped[str] = mapped_column(String, unique=True, nullable=False)
+    alias: Mapped[str | None] = mapped_column(String, nullable=True)
+
+
 class Position(Base):
     __tablename__ = "positions"
     __table_args__ = (
-        UniqueConstraint("account", "con_id", name="uq_account_con_id"),
+        UniqueConstraint("account_id", "con_id", name="uq_account_id_con_id"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    account: Mapped[str] = mapped_column(String, nullable=False)
+    account_id: Mapped[int] = mapped_column(Integer, nullable=False)
     con_id: Mapped[int] = mapped_column(Integer, nullable=False)
     symbol: Mapped[str | None] = mapped_column(String)
     sec_type: Mapped[str | None] = mapped_column(String)

@@ -1,4 +1,5 @@
 # Next Gen Trader
+Before using this project, read the [Disclaimer](#disclaimer). Some workflows can place live trades.
 
 ## Goals
 1. Review the market's price action, levels, and behaviors with LLMs.
@@ -16,6 +17,16 @@
 I'm planning to use this for my actual trading operations, so:
 - [ ] Interactive Brokers (primary)
 - [ ] Alpaca (secondary)
+
+## Disclaimer
+
+**This software executes real trades in real brokerage accounts with real money.** It is provided "as is" with no warranties of any kind.
+
+- Read and understand the code before you run it. You are fully responsible for what it does in your account.
+- The author(s) are not liable for any financial losses or unintended trades resulting from this software.
+- This is not financial advice. Past performance is not indicative of future results.
+
+**You assume all risk.**
 
 ## Code Gen Strategy
 I like to break up code into different categories: **Primitives, Components, Services**.
