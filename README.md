@@ -1,5 +1,5 @@
 # Next Gen Trader
-
+Before using this project, read the [Disclaimer](#disclaimer). Some workflows can place live trades.
 
 ## Goals
 1. Review the market's price action, levels, and behaviors with LLMs.

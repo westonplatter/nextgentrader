@@ -42,9 +42,10 @@ def list_positions(db: Session = Depends(get_db)):
     rows = db.execute(stmt).all()
     results = []
     for pos, acct in rows:
-        alias = ""
         if acct:
             alias = acct.alias if acct.alias else f"Account Alias {acct.id}"
+        else:
+            alias = f"Unknown Account {pos.account_id}"
         results.append(
             PositionResponse(
                 id=pos.id,
