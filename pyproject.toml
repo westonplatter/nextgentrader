@@ -5,4 +5,7 @@ description = "Review market price action, monitor portfolio strategies, and exe
 readme = "README.md"
 requires-python = ">=3.12"
 license = "BSD-3-Clause"
-dependencies = []
+dependencies = [
+    "ib-async>=2.1.0",
+    "python-dotenv>=1.2.1",
+]
