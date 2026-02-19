@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from ib_async import IB
-from sqlalchemy import Engine, inspect, select
+from sqlalchemy import Engine, delete, inspect, select, tuple_
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
@@ -44,17 +44,20 @@ def sync_positions_once(
     try:
         ib.connect(host, port, clientId=client_id)
         positions = ib.positions()
-        if not positions:
-            return 0
+        managed_accounts = {account for account in ib.managedAccounts() if account}
+        position_accounts = {position.account for position in positions if position.account}
+        scope_accounts = managed_accounts or position_accounts
 
         now = datetime.now(timezone.utc)
         with Session(engine) as session:
-            unique_accounts = {position.account for position in positions}
-            account_lookup = get_or_create_accounts(session, unique_accounts)
+            account_lookup = get_or_create_accounts(session, scope_accounts)
+            scope_account_ids = {account_lookup[account] for account in scope_accounts}
+            current_keys: set[tuple[int, int]] = set()
 
             for position in positions:
                 contract = position.contract
                 account_id = account_lookup[position.account]
+                current_keys.add((account_id, contract.conId))
                 stmt = (
                     insert(Position)
                     .values(
@@ -96,6 +99,14 @@ def sync_positions_once(
                     )
                 )
                 session.execute(stmt)
+
+            if scope_account_ids:
+                delete_stmt = delete(Position).where(Position.account_id.in_(scope_account_ids))
+                if current_keys:
+                    delete_stmt = delete_stmt.where(
+                        tuple_(Position.account_id, Position.con_id).not_in(current_keys)
+                    )
+                session.execute(delete_stmt)
 
             session.commit()
         return len(positions)

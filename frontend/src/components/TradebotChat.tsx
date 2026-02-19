@@ -19,11 +19,36 @@ function messageText(message: UIMessage): string {
   return parts.join("\n");
 }
 
+function sanitizeOutboundText(text: string): string {
+  const withRedactedAccountRefs = text
+    .replace(/\baccount(?:_id)?\s*[:=#]?\s*[a-zA-Z0-9_-]+\b/gi, "account [redacted]")
+    .replace(/\b[DdUuFf][a-zA-Z0-9]{6,}\b/g, "[redacted-account]");
+  return withRedactedAccountRefs.trim() || "[redacted]";
+}
+
 export default function TradebotChat() {
   const transport = useMemo(
     () =>
       new TextStreamChatTransport({
         api: "http://localhost:8000/api/v1/tradebot/chat",
+        prepareSendMessagesRequest: ({ id, messages, trigger, messageId }) => {
+          const latestUser = [...messages].reverse().find((message) => message.role === "user");
+          const latestUserText = latestUser ? messageText(latestUser) : "";
+          const sanitizedUserText = sanitizeOutboundText(latestUserText);
+          return {
+            body: {
+              id,
+              messages: [
+                {
+                  role: "user",
+                  parts: [{ type: "text", text: sanitizedUserText }],
+                },
+              ],
+              trigger,
+              messageId,
+            },
+          };
+        },
       }),
     [],
   );
