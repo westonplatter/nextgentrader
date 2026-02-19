@@ -1,11 +1,14 @@
 import { useState } from "react";
 import AccountsTable from "./components/AccountsTable";
+import OrdersTable from "./components/OrdersTable";
 import PositionsTable from "./components/PositionsTable";
+import TradebotChat from "./components/TradebotChat";
+import WorkerStatusLights from "./components/WorkerStatusLights";
 
-type Page = "positions" | "accounts";
+type Page = "positions" | "accounts" | "orders" | "tradebot";
 
 function App() {
-  const [page, setPage] = useState<Page>("positions");
+  const [page, setPage] = useState<Page>("tradebot");
 
   return (
     <div className="w-full">
@@ -23,10 +26,25 @@ function App() {
         >
           Accounts
         </button>
+        <button
+          onClick={() => setPage("orders")}
+          className={`text-sm ${page === "orders" ? "text-black font-semibold" : "text-gray-500 hover:text-gray-800"}`}
+        >
+          Orders
+        </button>
+        <button
+          onClick={() => setPage("tradebot")}
+          className={`text-sm ${page === "tradebot" ? "text-black font-semibold" : "text-gray-500 hover:text-gray-800"}`}
+        >
+          Tradebot
+        </button>
+        <WorkerStatusLights />
       </nav>
       <div className="px-6 py-6">
         {page === "positions" && <PositionsTable />}
         {page === "accounts" && <AccountsTable />}
+        {page === "orders" && <OrdersTable />}
+        {page === "tradebot" && <TradebotChat />}
       </div>
     </div>
   );

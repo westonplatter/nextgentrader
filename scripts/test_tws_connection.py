@@ -15,6 +15,8 @@ import os
 from dotenv import load_dotenv
 from ib_async import IB
 
+from src.utils.env_vars import get_int_env
+
 
 def load_env(env_name: str) -> None:
     env_file = f".env.{env_name}"
@@ -31,7 +33,7 @@ def main():
     load_env(args.env)
 
     host = "127.0.0.1"
-    port = int(os.environ.get("BROKER_TWS_PORT", "7497"))
+    port = get_int_env("BROKER_TWS_PORT", 7497)
 
     print(f"Connecting to TWS at {host}:{port} ...")
 

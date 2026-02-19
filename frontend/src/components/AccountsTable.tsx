@@ -42,12 +42,7 @@ export default function AccountsTable() {
     });
   };
 
-  useEffect(() => {
-    fetchAccounts();
-  }, []);
-
   function fetchAccounts() {
-    setLoading(true);
     fetch("http://localhost:8000/api/v1/accounts")
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -57,6 +52,10 @@ export default function AccountsTable() {
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   }
+
+  useEffect(() => {
+    fetchAccounts();
+  }, []);
 
   function startEdit(account: Account) {
     setEditingId(account.id);
