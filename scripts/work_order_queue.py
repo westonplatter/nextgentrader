@@ -16,12 +16,13 @@ from typing import Any
 
 from dotenv import load_dotenv
 from ib_async import Contract, IB, MarketOrder, Trade
-from sqlalchemy import inspect, select
+from sqlalchemy import inspect, select, update
 from sqlalchemy.orm import Session
 
 from src.db import get_engine
 from src.models import Account, Order
 from src.services.cl_contracts import select_front_month_contract
+from src.services.jobs import JOB_TYPE_POSITIONS_SYNC, enqueue_job_if_idle
 from src.services.order_queue import apply_order_progress, append_order_event, now_utc
 from src.services.worker_heartbeat import WORKER_TYPE_ORDERS, upsert_worker_heartbeat
 from src.utils.env_vars import get_int_env
@@ -50,7 +51,7 @@ def parse_args() -> argparse.Namespace:
 def check_db_ready() -> None:
     inspector = inspect(get_engine())
     tables = inspector.get_table_names()
-    for required in ("accounts", "orders", "order_events", "worker_heartbeats"):
+    for required in ("accounts", "orders", "order_events", "jobs", "worker_heartbeats"):
         if required not in tables:
             raise SystemExit(f"Missing '{required}' table. Run: task migrate")
 
@@ -181,6 +182,26 @@ def process_order(
         append_order_event(session, order, "order_error", f"Worker error: {exc}")
 
 
+def claim_queued_order_for_submission(session: Session, order_id: int) -> Order | None:
+    claimed_at = now_utc()
+    claim_stmt = (
+        update(Order)
+        .where(
+            Order.id == order_id,
+            Order.status == "queued",
+        )
+        .values(
+            status="submitting",
+            updated_at=claimed_at,
+        )
+        .returning(Order.id)
+    )
+    claimed_order_id = session.execute(claim_stmt).scalar_one_or_none()
+    if claimed_order_id is None:
+        return None
+    return session.get(Order, claimed_order_id)
+
+
 def run_worker(args: argparse.Namespace) -> int:
     port = args.port if args.port is not None else get_int_env("BROKER_TWS_PORT")
     if port is None:
@@ -207,14 +228,12 @@ def run_worker(args: argparse.Namespace) -> int:
         while True:
             processed = 0
             with Session(engine) as session:
-                stmt = (
-                    select(Order)
-                    .where(Order.status == "queued")
-                    .order_by(Order.created_at.asc())
-                    .limit(20)
-                )
-                orders = list(session.execute(stmt).scalars().all())
-                for order in orders:
+                stmt = select(Order.id).where(Order.status == "queued").order_by(Order.created_at.asc()).limit(20)
+                order_ids = list(session.execute(stmt).scalars().all())
+                for order_id in order_ids:
+                    order = claim_queued_order_for_submission(session, order_id)
+                    if order is None:
+                        continue
                     process_order(
                         ib=ib,
                         session=session,
@@ -222,6 +241,15 @@ def run_worker(args: argparse.Namespace) -> int:
                         timeout_seconds=args.order_timeout_seconds,
                     )
                     processed += 1
+
+                if processed > 0:
+                    enqueue_job_if_idle(
+                        session=session,
+                        job_type=JOB_TYPE_POSITIONS_SYNC,
+                        payload={},
+                        source="worker:orders",
+                        request_text="Auto sync after order processing",
+                    )
                 session.commit()
 
             upsert_worker_heartbeat(

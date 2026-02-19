@@ -39,6 +39,7 @@ export default function OrdersTable() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [actioning, setActioning] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     let active = true;
@@ -71,6 +72,30 @@ export default function OrdersTable() {
     };
   }, []);
 
+  function cancelOrder(orderId: number) {
+    setActioning((prev) => {
+      const next = new Set(prev);
+      next.add(orderId);
+      return next;
+    });
+    fetch(`http://localhost:8000/api/v1/orders/${orderId}/cancel`, { method: "POST" })
+      .then(async (res) => {
+        if (!res.ok) throw new Error(await res.text());
+        return res.json();
+      })
+      .then((updated: Order) => {
+        setOrders((prev) => prev.map((row) => (row.id === updated.id ? updated : row)));
+      })
+      .catch((err: Error) => setError(err.message))
+      .finally(() => {
+        setActioning((prev) => {
+          const next = new Set(prev);
+          next.delete(orderId);
+          return next;
+        });
+      });
+  }
+
   if (loading) return <p className="text-gray-500">Loading orders...</p>;
   if (error) return <p className="text-red-600">Error: {error}</p>;
   if (orders.length === 0) return <p className="text-gray-500">No orders found.</p>;
@@ -85,6 +110,7 @@ export default function OrdersTable() {
                 {col.label}
               </th>
             ))}
+            <th className="px-3 py-2 font-semibold text-gray-700 whitespace-nowrap">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -95,6 +121,17 @@ export default function OrdersTable() {
                   {order[col.key] ?? "—"}
                 </td>
               ))}
+              <td className="px-3 py-2 whitespace-nowrap">
+                {order.status === "queued" && (
+                  <button
+                    onClick={() => cancelOrder(order.id)}
+                    disabled={actioning.has(order.id)}
+                    className="rounded border border-red-300 px-2 py-1 text-xs text-red-700 hover:bg-red-50 disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                )}
+              </td>
             </tr>
           ))}
         </tbody>

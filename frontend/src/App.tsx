@@ -9,10 +9,13 @@ type Page = "positions" | "accounts" | "orders" | "tradebot";
 
 function App() {
   const [page, setPage] = useState<Page>("tradebot");
+  const horizontalPaddingClass = page === "tradebot" ? "px-2 md:px-3" : "px-6";
 
   return (
     <div className="w-full">
-      <nav className="flex items-center gap-6 px-6 py-3 border-b border-gray-200 bg-white">
+      <nav
+        className={`flex items-center gap-6 ${horizontalPaddingClass} py-3 border-b border-gray-200 bg-white`}
+      >
         <span className="font-bold text-lg">ngtrader</span>
         <button
           onClick={() => setPage("positions")}
@@ -40,7 +43,7 @@ function App() {
         </button>
         <WorkerStatusLights />
       </nav>
-      <div className="px-6 py-6">
+      <div className={`${horizontalPaddingClass} py-6`}>
         {page === "positions" && <PositionsTable />}
         {page === "accounts" && <AccountsTable />}
         {page === "orders" && <OrdersTable />}

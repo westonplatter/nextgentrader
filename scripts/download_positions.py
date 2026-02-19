@@ -38,7 +38,13 @@ def main():
 
     print(f"Connecting to TWS at {host}:{port} ...")
     try:
-        saved_count = sync_positions_once(engine=engine, host=host, port=port, client_id=client_id)
+        saved_count = sync_positions_once(
+            engine=engine,
+            host=host,
+            port=port,
+            client_id=client_id,
+            connect_timeout_seconds=20.0,
+        )
         print(f"Saved {saved_count} position(s) to database.")
     except Exception as e:
         print(f"Error: {e}")

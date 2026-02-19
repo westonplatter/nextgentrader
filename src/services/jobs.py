@@ -49,6 +49,32 @@ def enqueue_job(
     return job
 
 
+def enqueue_job_if_idle(
+    session: Session,
+    job_type: str,
+    payload: dict,
+    source: str,
+    request_text: str | None,
+    max_attempts: int = 3,
+) -> Job | None:
+    stmt = select(Job).where(
+        Job.job_type == job_type,
+        Job.archived_at.is_(None),
+        Job.status.in_((JOB_STATUS_QUEUED, JOB_STATUS_RUNNING)),
+    )
+    active = session.execute(stmt).scalars().first()
+    if active is not None:
+        return None
+    return enqueue_job(
+        session=session,
+        job_type=job_type,
+        payload=payload,
+        source=source,
+        request_text=request_text,
+        max_attempts=max_attempts,
+    )
+
+
 def claim_next_job(session: Session) -> Job | None:
     now = now_utc()
     stmt = (

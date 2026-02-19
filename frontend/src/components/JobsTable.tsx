@@ -148,7 +148,7 @@ export default function JobsTable() {
     });
 
   return (
-    <div className="min-w-[460px] rounded border border-gray-300 bg-white p-3">
+    <div className="min-w-0 h-[460px] rounded border border-gray-300 bg-white p-3 flex flex-col">
       <div className="mb-2 flex items-center justify-between">
         <h3 className="text-sm font-semibold text-gray-900">Jobs</h3>
         <span className="text-xs text-gray-500">Auto-refresh 2.5s</span>
@@ -156,7 +156,7 @@ export default function JobsTable() {
 
       {error && <p className="mb-2 text-xs text-red-600">Error: {error}</p>}
 
-      <div className="max-h-[280px] overflow-auto">
+      <div className="min-h-0 flex-1 overflow-auto">
         <table className="min-w-full border-collapse text-xs">
           <thead>
             <tr className="bg-gray-100 text-left">

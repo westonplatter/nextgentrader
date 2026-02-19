@@ -63,8 +63,8 @@ export default function TradebotChat() {
   };
 
   return (
-    <div className="w-full max-w-7xl">
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1.7fr)_minmax(460px,1.1fr)]">
+    <div className="w-full">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1.8fr)_minmax(400px,1.2fr)_minmax(420px,1.3fr)]">
         <div className="min-w-0">
           <div className="mb-3 flex flex-wrap gap-2">
             <button
@@ -136,11 +136,8 @@ export default function TradebotChat() {
           <p className="mt-2 text-xs text-gray-500">Status: {status}</p>
           {error && <p className="mt-1 text-xs text-red-600">Error: {error.message}</p>}
         </div>
-
-        <div className="space-y-4">
-          <JobsTable />
-          <OrdersSideTable />
-        </div>
+        <JobsTable />
+        <OrdersSideTable />
       </div>
     </div>
   );

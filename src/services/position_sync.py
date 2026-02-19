@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from ib_async import IB
-from sqlalchemy import Engine, delete, inspect, select, tuple_
+from sqlalchemy import Engine, delete, inspect, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
@@ -39,25 +39,38 @@ def sync_positions_once(
     host: str,
     port: int,
     client_id: int,
+    connect_timeout_seconds: float = 20.0,
 ) -> int:
     ib = IB()
     try:
-        ib.connect(host, port, clientId=client_id)
+        try:
+            ib.connect(host, port, clientId=client_id, timeout=connect_timeout_seconds)
+        except TimeoutError as exc:
+            raise RuntimeError(
+                "Timed out connecting to TWS/Gateway while fetching positions "
+                f"(host={host}, port={port}, client_id={client_id}, timeout={connect_timeout_seconds}s)."
+            ) from exc
         positions = ib.positions()
-        managed_accounts = {account for account in ib.managedAccounts() if account}
         position_accounts = {position.account for position in positions if position.account}
-        scope_accounts = managed_accounts or position_accounts
+        scope_accounts = position_accounts
 
         now = datetime.now(timezone.utc)
         with Session(engine) as session:
+            if not scope_accounts:
+                session.commit()
+                return 0
+
             account_lookup = get_or_create_accounts(session, scope_accounts)
             scope_account_ids = {account_lookup[account] for account in scope_accounts}
-            current_keys: set[tuple[int, int]] = set()
+
+            # Replace semantics per fetched account scope:
+            # clear prior snapshot rows for these accounts, then insert fresh rows.
+            if scope_account_ids:
+                session.execute(delete(Position).where(Position.account_id.in_(scope_account_ids)))
 
             for position in positions:
                 contract = position.contract
                 account_id = account_lookup[position.account]
-                current_keys.add((account_id, contract.conId))
                 stmt = (
                     insert(Position)
                     .values(
@@ -99,14 +112,6 @@ def sync_positions_once(
                     )
                 )
                 session.execute(stmt)
-
-            if scope_account_ids:
-                delete_stmt = delete(Position).where(Position.account_id.in_(scope_account_ids))
-                if current_keys:
-                    delete_stmt = delete_stmt.where(
-                        tuple_(Position.account_id, Position.con_id).not_in(current_keys)
-                    )
-                session.execute(delete_stmt)
 
             session.commit()
         return len(positions)

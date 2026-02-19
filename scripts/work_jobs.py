@@ -62,6 +62,7 @@ def handle_positions_sync(job: Job, engine: Engine) -> dict:
     host = str(payload.get("host") or "127.0.0.1")
     port_raw = payload.get("port")
     client_id_raw = payload.get("client_id")
+    connect_timeout_raw = payload.get("connect_timeout_seconds")
 
     if isinstance(port_raw, int):
         port = port_raw
@@ -75,17 +76,24 @@ def handle_positions_sync(job: Job, engine: Engine) -> dict:
     else:
         client_id = 31
 
+    if isinstance(connect_timeout_raw, (int, float)):
+        connect_timeout_seconds = float(connect_timeout_raw)
+    else:
+        connect_timeout_seconds = 20.0
+
     fetched_positions_count = sync_positions_once(
         engine=engine,
         host=host,
         port=port,
         client_id=client_id,
+        connect_timeout_seconds=connect_timeout_seconds,
     )
     return {
         "fetched_positions_count": fetched_positions_count,
         "host": host,
         "port": port,
         "client_id": client_id,
+        "connect_timeout_seconds": connect_timeout_seconds,
     }
 
 
