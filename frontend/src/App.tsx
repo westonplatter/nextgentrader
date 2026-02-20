@@ -10,9 +10,13 @@ type Page = "positions" | "accounts" | "orders" | "tradebot";
 function App() {
   const [page, setPage] = useState<Page>("tradebot");
   const horizontalPaddingClass = page === "tradebot" ? "px-2 md:px-3" : "px-6";
+  const contentClass =
+    page === "tradebot"
+      ? `${horizontalPaddingClass} py-3 flex-1 min-h-0 overflow-y-auto lg:overflow-hidden`
+      : `${horizontalPaddingClass} py-6`;
 
   return (
-    <div className="w-full">
+    <div className="w-full min-h-screen flex flex-col">
       <nav
         className={`flex items-center gap-6 ${horizontalPaddingClass} py-3 border-b border-gray-200 bg-white`}
       >
@@ -43,7 +47,7 @@ function App() {
         </button>
         <WorkerStatusLights />
       </nav>
-      <div className={`${horizontalPaddingClass} py-6`}>
+      <div className={contentClass}>
         {page === "positions" && <PositionsTable />}
         {page === "accounts" && <AccountsTable />}
         {page === "orders" && <OrdersTable />}

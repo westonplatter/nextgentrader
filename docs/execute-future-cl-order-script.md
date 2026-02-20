@@ -6,6 +6,7 @@ Use this to place a market `BUY` or `SELL` for the current CL front month with a
 
 - TWS or IB Gateway is running
 - `BROKER_TWS_PORT` is available from `.env.dev`
+- Optional: `BROKER_CL_MIN_DAYS_TO_EXPIRY` (default `7`) controls minimum days to expiry when selecting CL
 - If `.env.dev` uses `op://...`, use `op run`
 
 ## Commands
@@ -30,7 +31,7 @@ uv run python scripts/execute_cl_buy_or_sell_continous_market.py --env dev --sid
 
 ## Behavior
 
-- Script queries IBKR and selects the nearest non-expired CL futures contract
+- Script queries IBKR and selects the nearest CL futures contract with at least `BROKER_CL_MIN_DAYS_TO_EXPIRY` days until expiry
 - `Order intent` shows the resolved contract month (example: `Contract: CL 2026-03 (NYMEX)`)
 - Script prints current margin, expected post-trade margin (what-if), and estimated notional traded size
 - Script prompts for explicit confirmation (`BUY` or `SELL`) before sending the live order

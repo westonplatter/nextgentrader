@@ -21,7 +21,11 @@ from sqlalchemy.orm import Session
 
 from src.db import get_engine
 from src.models import Account, Order
-from src.services.cl_contracts import select_front_month_contract
+from src.services.cl_contracts import (
+    DEFAULT_CL_MIN_DAYS_TO_EXPIRY,
+    contract_days_to_expiry,
+    select_front_month_contract,
+)
 from src.services.jobs import JOB_TYPE_POSITIONS_SYNC, enqueue_job_if_idle
 from src.services.order_queue import apply_order_progress, append_order_event, now_utc
 from src.services.worker_heartbeat import WORKER_TYPE_ORDERS, upsert_worker_heartbeat
@@ -65,7 +69,18 @@ def parse_float(value: str | float | int | None) -> float | None:
         return None
 
 
+def get_cl_min_days_to_expiry() -> int:
+    min_days_to_expiry = get_int_env(
+        "BROKER_CL_MIN_DAYS_TO_EXPIRY", DEFAULT_CL_MIN_DAYS_TO_EXPIRY
+    )
+    if min_days_to_expiry is None or min_days_to_expiry < 0:
+        raise ValueError("BROKER_CL_MIN_DAYS_TO_EXPIRY must be >= 0.")
+    return min_days_to_expiry
+
+
 def get_or_qualify_contract(ib: IB, order: Order) -> Contract:
+    cl_min_days_to_expiry = get_cl_min_days_to_expiry() if order.symbol == "CL" else None
+
     if order.con_id:
         contract_kwargs: dict[str, Any] = {
             "conId": order.con_id,
@@ -81,10 +96,17 @@ def get_or_qualify_contract(ib: IB, order: Order) -> Contract:
         contract = Contract(**contract_kwargs)
         qualified = ib.qualifyContracts(contract)
         if len(qualified) == 1:
-            return qualified[0]
+            qualified_contract = qualified[0]
+            if cl_min_days_to_expiry is None:
+                return qualified_contract
+            days_to_expiry = contract_days_to_expiry(qualified_contract)
+            if days_to_expiry is not None and days_to_expiry >= cl_min_days_to_expiry:
+                return qualified_contract
 
     if order.symbol == "CL":
-        return select_front_month_contract(ib)
+        if cl_min_days_to_expiry is None:
+            raise RuntimeError("CL expiry safety window is not configured.")
+        return select_front_month_contract(ib, min_days_to_expiry=cl_min_days_to_expiry)
 
     fallback = Contract(
         symbol=order.symbol,

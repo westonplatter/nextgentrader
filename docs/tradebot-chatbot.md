@@ -2,35 +2,50 @@
 
 ## Purpose
 
-`/api/v1/tradebot/chat` is the chat control surface for operator requests.
+`/api/v1/tradebot/chat` is the operator chat control surface.
 
-It currently supports:
+It now runs as an LLM conversation workflow with LangGraph and explicit function tools.
 
-- Position summaries
-- Queueing `positions.sync` jobs
-- Queueing CL futures orders
-- Order/job progress summaries
-
-## Request/Response Model
+## Architecture
 
 - Frontend uses Vercel AI SDK `useChat` with `TextStreamChatTransport`.
-- Client sends `messages[]` (`role` + `parts[]`).
-- Server reads latest user text and returns plain text.
+- Client sends chat history (`messages[]`) to preserve conversation context.
+- FastAPI router (`src/api/routers/tradebot.py`) normalizes chat messages and calls the agent service.
+- Agent service (`src/services/tradebot_agent.py`) runs a LangGraph state machine:
+  - `model` node: calls an OpenAI-compatible `chat/completions` model
+  - `tools` node: executes requested tool calls against DB/workflows
+  - conditional routing loops until final assistant response or tool-step limit
 
-## Intent Routing
+## Available Tools
 
-Text is routed by simple intent parsing:
+Read tools:
 
-- Position sync intent (`refresh/sync/fetch positions`) -> enqueue `jobs` row (`job_type=positions.sync`)
-- CL order intent (`buy|sell <qty> CL`) -> qualify front-month CL via TWS, then enqueue `orders` row
-- Status/progress intent -> summarize latest jobs/orders
-- Fallback -> usage hints
+- `list_accounts`
+- `list_positions`
+- `list_jobs`
+- `list_orders`
 
-## Current Constraints
+Action tools:
 
-- Order intent currently supports only `CL` futures.
-- Account resolution uses `account <id|alias|account_number>` when provided; otherwise first account row.
-- Contract qualification requires TWS/Gateway connectivity.
+- `enqueue_positions_sync_job`
+- `submit_cl_order`
+
+## Safety Constraints
+
+- `submit_cl_order` requires `operator_confirmed=true` in tool args.
+- Orders are queued in DB for `worker:orders`; the chat endpoint does not submit directly to broker.
+- Positions sync is queued for `worker:jobs` via `positions.sync` jobs.
+- If an action tool fails, the tool call returns an explicit error payload back to the model.
+
+## Environment Variables
+
+- `TRADEBOT_LLM_API_KEY` (or fallback `OPENAI_API_KEY`)
+- `TRADEBOT_LLM_MODEL` (default `gpt-4.1-mini`)
+- `TRADEBOT_LLM_BASE_URL` (default `https://api.openai.com/v1`)
+- `TRADEBOT_LLM_TIMEOUT_SECONDS` (default `45`)
+- `BROKER_TWS_PORT` (required for CL qualification when queueing orders)
+- `BROKER_CL_MIN_DAYS_TO_EXPIRY` (default `7`; skip CL contracts too close to expiry)
+- `TRADEBOT_QUALIFY_CLIENT_ID` (default `29`)
 
 ## UI Components
 
@@ -42,6 +57,7 @@ Text is routed by simple intent parsing:
 ## Key Files
 
 - `src/api/routers/tradebot.py`
+- `src/services/tradebot_agent.py`
 - `frontend/src/components/TradebotChat.tsx`
 - `frontend/src/components/JobsTable.tsx`
 - `frontend/src/components/OrdersSideTable.tsx`

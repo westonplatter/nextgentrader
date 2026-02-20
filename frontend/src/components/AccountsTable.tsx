@@ -1,14 +1,23 @@
 import { useEffect, useState } from "react";
 
-function EyeIcon({ open }: { open: boolean }) {
-  if (open) {
-    return (
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-        <path d="M10 12.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z" />
-        <path fillRule="evenodd" d="M.664 10.59a1.651 1.651 0 010-1.186A10.004 10.004 0 0110 3c4.257 0 7.893 2.66 9.336 6.41.147.381.146.804 0 1.186A10.004 10.004 0 0110 17c-4.257 0-7.893-2.66-9.336-6.41zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
-      </svg>
-    );
-  }
+function CopyIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+      <path d="M7 3.5A1.5 1.5 0 018.5 2h3.879a1.5 1.5 0 011.06.44l3.122 3.12A1.5 1.5 0 0117 6.622V12.5a1.5 1.5 0 01-1.5 1.5h-1v-3.379a3 3 0 00-.879-2.121L10.5 5.379A3 3 0 008.379 4.5H7v-1z" />
+      <path d="M4.5 6A1.5 1.5 0 003 7.5v9A1.5 1.5 0 004.5 18h7a1.5 1.5 0 001.5-1.5v-5.879a1.5 1.5 0 00-.44-1.06L9.44 6.439A1.5 1.5 0 008.378 6H4.5z" />
+    </svg>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+      <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
+    </svg>
+  );
+}
+
+function EyeIcon() {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
       <path fillRule="evenodd" d="M3.28 2.22a.75.75 0 00-1.06 1.06l14.5 14.5a.75.75 0 101.06-1.06l-1.745-1.745a10.029 10.029 0 003.3-4.38 1.651 1.651 0 000-1.186A10.004 10.004 0 0010 3c-1.67 0-3.248.41-4.63 1.13L3.28 2.22zM7.74 6.68a4 4 0 015.58 5.58L7.74 6.68z" clipRule="evenodd" />
@@ -32,6 +41,7 @@ export default function AccountsTable() {
   const [editValue, setEditValue] = useState("");
   const [saving, setSaving] = useState(false);
   const [revealedAccounts, setRevealedAccounts] = useState<Set<number>>(new Set());
+  const [copiedId, setCopiedId] = useState<number | null>(null);
 
   const toggleReveal = (id: number) => {
     setRevealedAccounts((prev) => {
@@ -39,6 +49,13 @@ export default function AccountsTable() {
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
+    });
+  };
+
+  const copyAccount = (account: Account) => {
+    navigator.clipboard.writeText(account.account).then(() => {
+      setCopiedId(account.id);
+      setTimeout(() => setCopiedId(null), 2000);
     });
   };
 
@@ -114,18 +131,25 @@ export default function AccountsTable() {
             >
               <td className="px-3 py-2">{account.id}</td>
               <td className="px-3 py-2">
-                <span className="inline-flex items-center gap-1">
+                <span className="inline-flex items-center gap-2">
                   <span className="font-mono">
                     {revealedAccounts.has(account.id)
-                      ? account.account
-                      : account.masked_account}
+                      ? account.masked_account
+                      : "*".repeat(account.masked_account.length)}
                   </span>
                   <button
                     onClick={() => toggleReveal(account.id)}
                     className="text-gray-400 hover:text-gray-700"
-                    title={revealedAccounts.has(account.id) ? "Hide account" : "Show account"}
+                    title={revealedAccounts.has(account.id) ? "Hide last 2 digits" : "Reveal last 2 digits"}
                   >
-                    <EyeIcon open={revealedAccounts.has(account.id)} />
+                    <EyeIcon />
+                  </button>
+                  <button
+                    onClick={() => copyAccount(account)}
+                    className="text-gray-400 hover:text-gray-700"
+                    title="Copy account ID"
+                  >
+                    {copiedId === account.id ? <CheckIcon /> : <CopyIcon />}
                   </button>
                 </span>
               </td>

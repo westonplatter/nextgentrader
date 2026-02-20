@@ -20,10 +20,8 @@ function messageText(message: UIMessage): string {
 }
 
 function sanitizeOutboundText(text: string): string {
-  const withRedactedAccountRefs = text
-    .replace(/\baccount(?:_id)?\s*[:=#]?\s*[a-zA-Z0-9_-]+\b/gi, "account [redacted]")
-    .replace(/\b[DdUuFf][a-zA-Z0-9]{6,}\b/g, "[redacted-account]");
-  return withRedactedAccountRefs.trim() || "[redacted]";
+  const withRedactedIbAccounts = text.replace(/\b[DdUuFf][a-zA-Z0-9]{6,}\b/g, "[redacted-account]");
+  return withRedactedIbAccounts.trim() || "[redacted]";
 }
 
 export default function TradebotChat() {
@@ -32,18 +30,25 @@ export default function TradebotChat() {
       new TextStreamChatTransport({
         api: "http://localhost:8000/api/v1/tradebot/chat",
         prepareSendMessagesRequest: ({ id, messages, trigger, messageId }) => {
-          const latestUser = [...messages].reverse().find((message) => message.role === "user");
-          const latestUserText = latestUser ? messageText(latestUser) : "";
-          const sanitizedUserText = sanitizeOutboundText(latestUserText);
+          const outboundMessages = messages
+            .map((message) => {
+              const text = messageText(message);
+              if (!text) return null;
+              return {
+                role: message.role,
+                parts: [
+                  {
+                    type: "text",
+                    text: message.role === "user" ? sanitizeOutboundText(text) : text,
+                  },
+                ],
+              };
+            })
+            .filter((message): message is { role: string; parts: { type: "text"; text: string }[] } => Boolean(message));
           return {
             body: {
               id,
-              messages: [
-                {
-                  role: "user",
-                  parts: [{ type: "text", text: sanitizedUserText }],
-                },
-              ],
+              messages: outboundMessages,
               trigger,
               messageId,
             },
@@ -63,9 +68,9 @@ export default function TradebotChat() {
   };
 
   return (
-    <div className="w-full">
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1.8fr)_minmax(400px,1.2fr)_minmax(420px,1.3fr)]">
-        <div className="min-w-0">
+    <div className="w-full h-full min-h-0 overflow-y-auto lg:overflow-hidden">
+      <div className="grid h-auto min-h-0 gap-4 lg:h-full lg:overflow-hidden lg:grid-cols-[minmax(0,1.8fr)_minmax(400px,1.2fr)_minmax(420px,1.3fr)]">
+        <div className="min-w-0 min-h-0 lg:h-full flex flex-col">
           <div className="mb-3 flex flex-wrap gap-2">
             <button
               onClick={() => void submit(POSITION_SYNC_PROMPT)}
@@ -85,7 +90,7 @@ export default function TradebotChat() {
             ))}
           </div>
 
-          <div className="h-[460px] overflow-y-auto rounded border border-gray-300 bg-white p-4">
+          <div className="min-h-0 flex-1 overflow-y-auto rounded border border-gray-300 bg-white p-4">
             {messages.length === 0 && (
               <p className="text-sm text-gray-500">
                 Ask about positions, queue CL orders, or check order progress.

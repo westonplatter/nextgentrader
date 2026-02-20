@@ -7,6 +7,8 @@ from dataclasses import dataclass
 
 from ib_async import Contract, Future, IB
 
+DEFAULT_CL_MIN_DAYS_TO_EXPIRY = 7
+
 
 @dataclass(frozen=True)
 class QualifiedContract:
@@ -42,6 +44,18 @@ def parse_contract_expiry(last_trade_or_month: str) -> dt.date | None:
     return None
 
 
+def days_until_contract_expiry(last_trade_or_month: str, today: dt.date | None = None) -> int | None:
+    expiry = parse_contract_expiry(last_trade_or_month)
+    if expiry is None:
+        return None
+    comparison_day = today or dt.date.today()
+    return (expiry - comparison_day).days
+
+
+def contract_days_to_expiry(contract: Contract, today: dt.date | None = None) -> int | None:
+    return days_until_contract_expiry(contract.lastTradeDateOrContractMonth, today=today)
+
+
 def format_contract_month(contract: Contract) -> str | None:
     raw_value = (contract.lastTradeDateOrContractMonth or "").strip()
     if len(raw_value) >= 6 and raw_value[:6].isdigit():
@@ -53,23 +67,41 @@ def format_contract_month(contract: Contract) -> str | None:
     return None
 
 
-def select_front_month_contract(ib: IB) -> Contract:
+def select_front_month_contract(
+    ib: IB, min_days_to_expiry: int = DEFAULT_CL_MIN_DAYS_TO_EXPIRY
+) -> Contract:
+    if min_days_to_expiry < 0:
+        raise ValueError("min_days_to_expiry must be >= 0")
+
     contract_details = ib.reqContractDetails(Future("CL", exchange="NYMEX", currency="USD"))
     if not contract_details:
         raise RuntimeError("No CL futures contract details returned from IBKR")
 
-    today = dt.date.today()
     candidates: list[tuple[dt.date, Contract]] = []
+    non_expired: list[tuple[dt.date, Contract]] = []
     for detail in contract_details:
         contract = detail.contract
         if contract is None:
             continue
         expiry = parse_contract_expiry(contract.lastTradeDateOrContractMonth)
-        if contract.secType != "FUT" or expiry is None or expiry < today:
+        days_to_expiry = contract_days_to_expiry(contract)
+        if contract.secType != "FUT" or expiry is None or days_to_expiry is None or days_to_expiry < 0:
+            continue
+        non_expired.append((expiry, contract))
+        if days_to_expiry < min_days_to_expiry:
             continue
         candidates.append((expiry, contract))
 
     if not candidates:
+        if non_expired:
+            nearest_expiry, nearest_contract = min(non_expired, key=lambda item: item[0])
+            nearest_days = contract_days_to_expiry(nearest_contract)
+            raise RuntimeError(
+                "No CL futures contracts found outside the near-expiry safety window "
+                f"(min_days_to_expiry={min_days_to_expiry}). "
+                f"Nearest non-expired contract: {nearest_contract.localSymbol or nearest_contract.symbol} "
+                f"expiring {nearest_expiry.isoformat()} ({nearest_days} days)."
+            )
         raise RuntimeError("No non-expired CL futures contracts found")
 
     candidates.sort(key=lambda item: item[0])

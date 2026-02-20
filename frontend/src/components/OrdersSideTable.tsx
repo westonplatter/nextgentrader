@@ -5,6 +5,7 @@ interface OrderRow {
   symbol: string;
   side: string;
   quantity: number;
+  contract_month: string | null;
   status: string;
   filled_quantity: number;
   avg_fill_price: number | null;
@@ -136,7 +137,7 @@ export default function OrdersSideTable() {
   };
 
   return (
-    <div className="min-w-0 h-[460px] rounded border border-gray-300 bg-white p-3 flex flex-col">
+    <div className="min-w-0 h-full min-h-0 rounded border border-gray-300 bg-white p-3 flex flex-col">
       <div className="mb-2 flex items-center justify-between">
         <h3 className="text-sm font-semibold text-gray-900">Orders</h3>
         <span className="text-xs text-gray-500">Auto-refresh 2.5s</span>
@@ -170,6 +171,7 @@ export default function OrdersSideTable() {
                 <td className="px-2 py-1 font-mono text-gray-800">{order.id}</td>
                 <td className="px-2 py-1 text-gray-700">
                   {order.side} {order.quantity} {order.symbol}
+                  {order.contract_month ? ` ${order.contract_month}` : ""}
                 </td>
                 <td className="px-2 py-1">
                   <span

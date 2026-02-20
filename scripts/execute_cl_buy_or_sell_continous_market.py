@@ -20,6 +20,7 @@ from dotenv import load_dotenv
 from ib_async import Contract, IB, MarketOrder, Order, OrderState, Ticker, Trade
 
 from src.services.cl_contracts import (
+    DEFAULT_CL_MIN_DAYS_TO_EXPIRY,
     format_contract_month,
     select_front_month_contract,
 )
@@ -164,6 +165,11 @@ def main() -> int:
 
     load_env(args.env)
     port = args.port or get_int_env("BROKER_TWS_PORT", 7497)
+    min_days_to_expiry = get_int_env(
+        "BROKER_CL_MIN_DAYS_TO_EXPIRY", DEFAULT_CL_MIN_DAYS_TO_EXPIRY
+    )
+    if min_days_to_expiry is None or min_days_to_expiry < 0:
+        raise SystemExit("BROKER_CL_MIN_DAYS_TO_EXPIRY must be >= 0.")
 
     action = args.side.upper()
 
@@ -175,7 +181,9 @@ def main() -> int:
         account = choose_account(ib, args.account)
         print(f"Using account: {mask_ibkr_account(account)}")
 
-        qualified_contract = select_front_month_contract(ib)
+        qualified_contract = select_front_month_contract(
+            ib, min_days_to_expiry=min_days_to_expiry
+        )
         contract_month = format_contract_month(qualified_contract) or "unknown"
         contract_expiry = qualified_contract.lastTradeDateOrContractMonth
 
@@ -183,6 +191,7 @@ def main() -> int:
         print(f"  Action: {action}")
         print(f"  Quantity: {args.qty}")
         print(f"  Contract: CL {contract_month} (NYMEX)")
+        print(f"  Min Days To Expiry: {min_days_to_expiry}")
         print(f"  Connection: {args.host}:{port} (clientId={args.client_id})")
 
         print(

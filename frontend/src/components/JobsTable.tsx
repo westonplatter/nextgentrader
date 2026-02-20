@@ -148,7 +148,7 @@ export default function JobsTable() {
     });
 
   return (
-    <div className="min-w-0 h-[460px] rounded border border-gray-300 bg-white p-3 flex flex-col">
+    <div className="min-w-0 h-full min-h-0 rounded border border-gray-300 bg-white p-3 flex flex-col">
       <div className="mb-2 flex items-center justify-between">
         <h3 className="text-sm font-semibold text-gray-900">Jobs</h3>
         <span className="text-xs text-gray-500">Auto-refresh 2.5s</span>

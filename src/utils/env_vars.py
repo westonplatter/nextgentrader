@@ -29,6 +29,25 @@ def get_int_env(name: str, default: int | None = None) -> int | None:
         raise ValueError(f"{name} must be an integer, got '{raw}'") from exc
 
 
+@overload
+def get_str_env(name: str, default: str) -> str: ...
+
+
+@overload
+def get_str_env(name: str, default: None = None) -> str | None: ...
+
+
+def get_str_env(name: str, default: str | None = None) -> str | None:
+    raw = os.environ.get(name)
+    if raw is None or not raw.strip():
+        return default
+
+    if raw.startswith("op://"):
+        raw = resolve_1password_reference(name, raw)
+
+    return raw.strip()
+
+
 def resolve_1password_reference(name: str, reference: str) -> str:
     try:
         result = subprocess.run(
