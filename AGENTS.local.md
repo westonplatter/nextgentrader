@@ -6,6 +6,11 @@ This is a agentic project enabling one person to operate as an quick and nimble 
 
 If any `docs/*.md` file is added, modified, renamed, or deleted (excluding `docs/_index.md`), update `docs/_index.md` in the same change.
 
+`docs/_index.md` has two sections — place the entry in the right one:
+
+- **Project Docs** — runbooks, how-tos, and reference material.
+- **Specs** — architecture specs and design proposals (files prefixed `spec-`).
+
 ## Codebase Survey
 
 ### Repository Layout
