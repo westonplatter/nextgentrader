@@ -6,6 +6,20 @@ This is a agentic project enabling one person to operate as an quick and nimble 
 
 If any `docs/*.md` file is added, modified, renamed, or deleted (excluding `docs/_index.md`), update `docs/_index.md` in the same change.
 
+`docs/_index.md` has two sections — place the entry in the right one:
+
+- **Project Docs** — runbooks, how-tos, and reference material.
+- **Specs** — architecture specs and design proposals (files prefixed `spec-`).
+
+## Code Validation
+
+Always use `uv run python scripts/check.py <module>` to verify imports. Never use `uv run python -c` for import checks.
+
+- All modules: `uv run python scripts/check.py`
+- Specific: `uv run python scripts/check.py src.services.jobs`
+
+Exits 1 on failure.
+
 ## Codebase Survey
 
 ### Repository Layout
