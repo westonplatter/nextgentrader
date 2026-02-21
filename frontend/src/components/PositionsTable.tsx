@@ -55,7 +55,8 @@ export default function PositionsTable() {
 
   if (loading) return <p className="text-gray-500">Loading positions...</p>;
   if (error) return <p className="text-red-600">Error: {error}</p>;
-  if (positions.length === 0) return <p className="text-gray-500">No positions found.</p>;
+  if (positions.length === 0)
+    return <p className="text-gray-500">No positions found.</p>;
 
   return (
     <div className="overflow-x-auto">
@@ -63,7 +64,10 @@ export default function PositionsTable() {
         <thead>
           <tr className="bg-gray-100 text-left">
             {COLUMNS.map((col) => (
-              <th key={col.key} className="px-3 py-2 font-semibold text-gray-700 whitespace-nowrap">
+              <th
+                key={col.key}
+                className="px-3 py-2 font-semibold text-gray-700 whitespace-nowrap"
+              >
                 {col.label}
               </th>
             ))}
@@ -71,7 +75,10 @@ export default function PositionsTable() {
         </thead>
         <tbody>
           {positions.map((pos) => (
-            <tr key={pos.id} className="border-b border-gray-200 hover:bg-gray-50">
+            <tr
+              key={pos.id}
+              className="border-b border-gray-200 hover:bg-gray-50"
+            >
               {COLUMNS.map((col) => (
                 <td key={col.key} className="px-3 py-2 whitespace-nowrap">
                   {pos[col.key] ?? "—"}

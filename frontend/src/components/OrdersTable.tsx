@@ -51,7 +51,10 @@ export default function OrdersTable() {
       return bMs - aMs;
     });
 
-    const rows: Array<{ kind: "group"; key: string; label: string } | { kind: "order"; order: Order }> = [];
+    const rows: Array<
+      | { kind: "group"; key: string; label: string }
+      | { kind: "order"; order: Order }
+    > = [];
     let currentGroupKey = "";
     for (const order of sorted) {
       const createdDate = new Date(order.created_at);
@@ -116,13 +119,17 @@ export default function OrdersTable() {
       next.add(orderId);
       return next;
     });
-    fetch(`http://localhost:8000/api/v1/orders/${orderId}/cancel`, { method: "POST" })
+    fetch(`http://localhost:8000/api/v1/orders/${orderId}/cancel`, {
+      method: "POST",
+    })
       .then(async (res) => {
         if (!res.ok) throw new Error(await res.text());
         return res.json();
       })
       .then((updated: Order) => {
-        setOrders((prev) => prev.map((row) => (row.id === updated.id ? updated : row)));
+        setOrders((prev) =>
+          prev.map((row) => (row.id === updated.id ? updated : row)),
+        );
       })
       .catch((err: Error) => setError(err.message))
       .finally(() => {
@@ -136,7 +143,8 @@ export default function OrdersTable() {
 
   if (loading) return <p className="text-gray-500">Loading orders...</p>;
   if (error) return <p className="text-red-600">Error: {error}</p>;
-  if (orders.length === 0) return <p className="text-gray-500">No orders found.</p>;
+  if (orders.length === 0)
+    return <p className="text-gray-500">No orders found.</p>;
 
   return (
     <div className="overflow-x-auto">
@@ -144,23 +152,34 @@ export default function OrdersTable() {
         <thead>
           <tr className="bg-gray-100 text-left">
             {COLUMNS.map((col) => (
-              <th key={col.key} className="px-3 py-2 font-semibold text-gray-700 whitespace-nowrap">
+              <th
+                key={col.key}
+                className="px-3 py-2 font-semibold text-gray-700 whitespace-nowrap"
+              >
                 {col.label}
               </th>
             ))}
-            <th className="px-3 py-2 font-semibold text-gray-700 whitespace-nowrap">Actions</th>
+            <th className="px-3 py-2 font-semibold text-gray-700 whitespace-nowrap">
+              Actions
+            </th>
           </tr>
         </thead>
         <tbody>
           {orderedRows.map((row) =>
             row.kind === "group" ? (
               <tr key={`group-${row.key}`} className="bg-gray-50">
-                <td className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-600" colSpan={COLUMNS.length + 1}>
+                <td
+                  className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-600"
+                  colSpan={COLUMNS.length + 1}
+                >
                   {row.label}
                 </td>
               </tr>
             ) : (
-              <tr key={row.order.id} className="border-b border-gray-200 hover:bg-gray-50">
+              <tr
+                key={row.order.id}
+                className="border-b border-gray-200 hover:bg-gray-50"
+              >
                 {COLUMNS.map((col) => (
                   <td key={col.key} className="px-3 py-2 whitespace-nowrap">
                     {row.order[col.key] ?? "—"}

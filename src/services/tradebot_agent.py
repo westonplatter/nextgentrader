@@ -5,8 +5,8 @@
 
 from __future__ import annotations
 
-import os
 import json
+import os
 from dataclasses import dataclass
 from typing import Any, Sequence, TypedDict
 from urllib import error, request
@@ -59,7 +59,9 @@ _SYSTEM_PROMPT = (
 _MAX_MESSAGES = 16
 _MAX_TOOL_STEPS = 8
 _DEFAULT_LLM_MODEL = os.getenv("TRADEBOT_LLM_MODEL") or "gpt-5-mini"
-_DEFAULT_LLM_BASE_URL = os.getenv("TRADEBOT_LLM_BASE_URL") or "https://api.openai.com/v1"
+_DEFAULT_LLM_BASE_URL = (
+    os.getenv("TRADEBOT_LLM_BASE_URL") or "https://api.openai.com/v1"
+)
 _DEFAULT_TIMEOUT_SECONDS = 45
 _TOOL_SOURCE = "tradebot-llm"
 
@@ -180,7 +182,10 @@ _TOOL_SPECS: list[dict[str, Any]] = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "symbol": {"type": "string", "description": "Ticker symbol, e.g. CL, ES, NQ, AAPL"},
+                    "symbol": {
+                        "type": "string",
+                        "description": "Ticker symbol, e.g. CL, ES, NQ, AAPL",
+                    },
                     "sec_type": {
                         "type": "string",
                         "enum": ["FUT", "OPT", "FOP", "STK"],
@@ -210,11 +215,27 @@ _TOOL_SPECS: list[dict[str, Any]] = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "symbol": {"type": "string", "description": "Ticker symbol, e.g. CL, ES, NQ, AAPL"},
-                    "sec_type": {"type": "string", "enum": ["FUT", "OPT", "FOP", "STK"]},
-                    "contract_month": {"type": "string", "description": "YYYY-MM or month name like 'March 2026'"},
-                    "strike": {"type": "number", "description": "Strike price for OPT/FOP"},
-                    "right": {"type": "string", "enum": ["C", "P"], "description": "Call or Put for OPT/FOP"},
+                    "symbol": {
+                        "type": "string",
+                        "description": "Ticker symbol, e.g. CL, ES, NQ, AAPL",
+                    },
+                    "sec_type": {
+                        "type": "string",
+                        "enum": ["FUT", "OPT", "FOP", "STK"],
+                    },
+                    "contract_month": {
+                        "type": "string",
+                        "description": "YYYY-MM or month name like 'March 2026'",
+                    },
+                    "strike": {
+                        "type": "number",
+                        "description": "Strike price for OPT/FOP",
+                    },
+                    "right": {
+                        "type": "string",
+                        "enum": ["C", "P"],
+                        "description": "Call or Put for OPT/FOP",
+                    },
                 },
                 "required": ["symbol", "sec_type"],
                 "additionalProperties": False,
@@ -232,15 +253,35 @@ _TOOL_SPECS: list[dict[str, Any]] = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "symbol": {"type": "string", "description": "Ticker symbol, e.g. CL, ES, NQ, AAPL"},
-                    "sec_type": {"type": "string", "enum": ["FUT", "OPT", "FOP", "STK"]},
+                    "symbol": {
+                        "type": "string",
+                        "description": "Ticker symbol, e.g. CL, ES, NQ, AAPL",
+                    },
+                    "sec_type": {
+                        "type": "string",
+                        "enum": ["FUT", "OPT", "FOP", "STK"],
+                    },
                     "side": {"type": "string", "enum": ["BUY", "SELL", "buy", "sell"]},
                     "quantity": {"type": "integer", "minimum": 1, "maximum": 1000},
                     "account_ref": {"type": "string"},
-                    "contract_month": {"type": "string", "description": "YYYY-MM or month name like 'March 2026'"},
-                    "strike": {"type": "number", "description": "Strike price for OPT/FOP"},
-                    "right": {"type": "string", "enum": ["C", "P"], "description": "Call or Put for OPT/FOP"},
-                    "run_pretrade_check": {"type": "boolean", "default": False, "description": "Set true only if user asks for margin/pretrade check"},
+                    "contract_month": {
+                        "type": "string",
+                        "description": "YYYY-MM or month name like 'March 2026'",
+                    },
+                    "strike": {
+                        "type": "number",
+                        "description": "Strike price for OPT/FOP",
+                    },
+                    "right": {
+                        "type": "string",
+                        "enum": ["C", "P"],
+                        "description": "Call or Put for OPT/FOP",
+                    },
+                    "run_pretrade_check": {
+                        "type": "boolean",
+                        "default": False,
+                        "description": "Set true only if user asks for margin/pretrade check",
+                    },
                 },
                 "required": ["symbol", "sec_type", "side", "quantity"],
                 "additionalProperties": False,
@@ -275,15 +316,30 @@ _TOOL_SPECS: list[dict[str, Any]] = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "con_id": {"type": "integer", "description": "Contract ID from preview_order"},
+                    "con_id": {
+                        "type": "integer",
+                        "description": "Contract ID from preview_order",
+                    },
                     "side": {"type": "string", "enum": ["BUY", "SELL"]},
                     "quantity": {"type": "integer", "minimum": 1, "maximum": 1000},
-                    "account_id": {"type": "integer", "description": "Account ID from preview_order"},
-                    "pretrade_job_id": {"type": "integer", "description": "Optional pretrade job ID if pretrade check was run"},
+                    "account_id": {
+                        "type": "integer",
+                        "description": "Account ID from preview_order",
+                    },
+                    "pretrade_job_id": {
+                        "type": "integer",
+                        "description": "Optional pretrade job ID if pretrade check was run",
+                    },
                     "operator_confirmed": {"type": "boolean"},
                     "request_text": {"type": "string"},
                 },
-                "required": ["con_id", "side", "quantity", "account_id", "operator_confirmed"],
+                "required": [
+                    "con_id",
+                    "side",
+                    "quantity",
+                    "account_id",
+                    "operator_confirmed",
+                ],
                 "additionalProperties": False,
             },
         },
@@ -371,9 +427,13 @@ def _coerce_optional_str_arg(args: dict[str, Any], key: str) -> str | None:
 
 def _resolve_account(session: Session, account_ref: str | None) -> Account:
     if account_ref is None or account_ref.lower() in {"[redacted]", "redacted"}:
-        account = session.execute(select(Account).order_by(Account.id)).scalars().first()
+        account = (
+            session.execute(select(Account).order_by(Account.id)).scalars().first()
+        )
         if account is None:
-            raise ValueError("No account found. Ingest positions first so accounts are available.")
+            raise ValueError(
+                "No account found. Ingest positions first so accounts are available."
+            )
         return account
 
     if account_ref.isdigit():
@@ -391,7 +451,9 @@ def _resolve_account(session: Session, account_ref: str | None) -> Account:
     return account
 
 
-def _tool_list_accounts(session: Session, _: str, args: dict[str, Any]) -> dict[str, Any]:
+def _tool_list_accounts(
+    session: Session, _: str, args: dict[str, Any]
+) -> dict[str, Any]:
     if args:
         raise ValueError("list_accounts does not take arguments.")
     rows = session.execute(select(Account).order_by(Account.id)).scalars().all()
@@ -407,7 +469,9 @@ def _tool_list_accounts(session: Session, _: str, args: dict[str, Any]) -> dict[
     }
 
 
-def _tool_list_positions(session: Session, _: str, args: dict[str, Any]) -> dict[str, Any]:
+def _tool_list_positions(
+    session: Session, _: str, args: dict[str, Any]
+) -> dict[str, Any]:
     limit = _coerce_int_arg(args, "limit", 25, 1, 200)
     stmt = (
         select(Position, Account)
@@ -441,7 +505,11 @@ def _tool_list_jobs(session: Session, _: str, args: dict[str, Any]) -> dict[str,
     stmt = select(Job)
     if not include_archived:
         stmt = stmt.where(Job.archived_at.is_(None))
-    rows = session.execute(stmt.order_by(Job.created_at.desc()).limit(limit)).scalars().all()
+    rows = (
+        session.execute(stmt.order_by(Job.created_at.desc()).limit(limit))
+        .scalars()
+        .all()
+    )
     jobs = [
         {
             "id": job.id,
@@ -525,7 +593,9 @@ def _tool_list_orders(session: Session, _: str, args: dict[str, Any]) -> dict[st
     return {"orders": orders, "count": len(orders)}
 
 
-def _tool_enqueue_positions_sync_job(session: Session, latest_user_text: str, args: dict[str, Any]) -> dict[str, Any]:
+def _tool_enqueue_positions_sync_job(
+    session: Session, latest_user_text: str, args: dict[str, Any]
+) -> dict[str, Any]:
     max_attempts = _coerce_int_arg(args, "max_attempts", 3, 1, 10)
     request_text = _coerce_optional_str_arg(args, "request_text") or latest_user_text
     job = enqueue_job(
@@ -592,7 +662,9 @@ def _resolve_exchange(symbol: str, sec_type: str) -> str:
     return "SMART"
 
 
-def _tool_enqueue_contracts_sync_job(session: Session, latest_user_text: str, args: dict[str, Any]) -> dict[str, Any]:
+def _tool_enqueue_contracts_sync_job(
+    session: Session, latest_user_text: str, args: dict[str, Any]
+) -> dict[str, Any]:
     max_attempts = _coerce_int_arg(args, "max_attempts", 3, 1, 10)
     request_text = _coerce_optional_str_arg(args, "request_text") or latest_user_text
 
@@ -623,7 +695,9 @@ def _tool_enqueue_contracts_sync_job(session: Session, latest_user_text: str, ar
     }
 
 
-def _tool_lookup_contract(session: Session, _: str, args: dict[str, Any]) -> dict[str, Any]:
+def _tool_lookup_contract(
+    session: Session, _: str, args: dict[str, Any]
+) -> dict[str, Any]:
     symbol_raw = args.get("symbol")
     if not isinstance(symbol_raw, str) or not symbol_raw.strip():
         raise ValueError("'symbol' must be a non-empty string.")
@@ -635,7 +709,9 @@ def _tool_lookup_contract(session: Session, _: str, args: dict[str, Any]) -> dic
     sec_type = sec_type_raw.strip().upper()
 
     requested_contract_month_raw = _coerce_optional_str_arg(args, "contract_month")
-    requested_contract_month = normalize_contract_month_input(requested_contract_month_raw)
+    requested_contract_month = normalize_contract_month_input(
+        requested_contract_month_raw
+    )
 
     strike_raw = args.get("strike")
     strike = float(strike_raw) if strike_raw is not None else None
@@ -643,7 +719,9 @@ def _tool_lookup_contract(session: Session, _: str, args: dict[str, Any]) -> dic
     if right is not None:
         right = right.upper()
 
-    min_days_to_expiry = get_int_env("BROKER_CL_MIN_DAYS_TO_EXPIRY", DEFAULT_CL_MIN_DAYS_TO_EXPIRY)
+    min_days_to_expiry = get_int_env(
+        "BROKER_CL_MIN_DAYS_TO_EXPIRY", DEFAULT_CL_MIN_DAYS_TO_EXPIRY
+    )
 
     contracts = find_contracts(
         session=session,
@@ -662,7 +740,9 @@ def _tool_lookup_contract(session: Session, _: str, args: dict[str, Any]) -> dic
         if month not in months:
             months[month] = {
                 "contract_month": month,
-                "contract_month_display": display_contract_month(month) if month != "unknown" else "unknown",
+                "contract_month_display": (
+                    display_contract_month(month) if month != "unknown" else "unknown"
+                ),
                 "con_id": c["con_id"],
                 "local_symbol": c["local_symbol"],
                 "exchange": c["exchange"],
@@ -678,21 +758,29 @@ def _tool_lookup_contract(session: Session, _: str, args: dict[str, Any]) -> dic
         "symbol": symbol,
         "sec_type": sec_type,
         "total_contracts": len(contracts),
-        "available_months": [
-            months[m] for m in months
-        ],
-        "front_month": {
-            "contract_month": front_month["contract_month"],
-            "contract_month_display": display_contract_month(front_month["contract_month"]) if front_month.get("contract_month") else "unknown",
-            "con_id": front_month["con_id"],
-            "local_symbol": front_month["local_symbol"],
-            "contract_expiry": front_month["contract_expiry"],
-            "days_to_expiry": front_month["days_to_expiry"],
-        } if front_month else None,
+        "available_months": [months[m] for m in months],
+        "front_month": (
+            {
+                "contract_month": front_month["contract_month"],
+                "contract_month_display": (
+                    display_contract_month(front_month["contract_month"])
+                    if front_month.get("contract_month")
+                    else "unknown"
+                ),
+                "con_id": front_month["con_id"],
+                "local_symbol": front_month["local_symbol"],
+                "contract_expiry": front_month["contract_expiry"],
+                "days_to_expiry": front_month["days_to_expiry"],
+            }
+            if front_month
+            else None
+        ),
     }
 
 
-def _tool_preview_order(session: Session, latest_user_text: str, args: dict[str, Any]) -> dict[str, Any]:
+def _tool_preview_order(
+    session: Session, latest_user_text: str, args: dict[str, Any]
+) -> dict[str, Any]:
     symbol_raw = args.get("symbol")
     if not isinstance(symbol_raw, str) or not symbol_raw.strip():
         raise ValueError("'symbol' must be a non-empty string.")
@@ -715,7 +803,9 @@ def _tool_preview_order(session: Session, latest_user_text: str, args: dict[str,
     quantity = _coerce_int_arg(args, "quantity", 1, 1, 1000)
     account_ref = _coerce_optional_str_arg(args, "account_ref")
     requested_contract_month_raw = _coerce_optional_str_arg(args, "contract_month")
-    requested_contract_month = normalize_contract_month_input(requested_contract_month_raw)
+    requested_contract_month = normalize_contract_month_input(
+        requested_contract_month_raw
+    )
 
     strike_raw = args.get("strike")
     strike = float(strike_raw) if strike_raw is not None else None
@@ -727,7 +817,9 @@ def _tool_preview_order(session: Session, latest_user_text: str, args: dict[str,
 
     account = _resolve_account(session, account_ref)
 
-    min_days_to_expiry = get_int_env("BROKER_CL_MIN_DAYS_TO_EXPIRY", DEFAULT_CL_MIN_DAYS_TO_EXPIRY)
+    min_days_to_expiry = get_int_env(
+        "BROKER_CL_MIN_DAYS_TO_EXPIRY", DEFAULT_CL_MIN_DAYS_TO_EXPIRY
+    )
 
     selected = select_contract(
         session=session,
@@ -763,9 +855,15 @@ def _tool_preview_order(session: Session, latest_user_text: str, args: dict[str,
     session.commit()
 
     account_label = account.alias or mask_ibkr_account(account.account)
-    available_account_count = session.execute(select(func.count(Account.id))).scalar_one()
+    available_account_count = session.execute(
+        select(func.count(Account.id))
+    ).scalar_one()
     selected_month = selected["contract_month"] or "unknown"
-    selected_month_display = display_contract_month(selected_month) if selected_month != "unknown" else "unknown"
+    selected_month_display = (
+        display_contract_month(selected_month)
+        if selected_month != "unknown"
+        else "unknown"
+    )
     requested_month_display = (
         display_contract_month(selected["requested_contract_month"])
         if selected["requested_contract_month"] is not None
@@ -838,7 +936,9 @@ _PRETRADE_POLL_INTERVAL = 2
 _PRETRADE_POLL_MAX_SECONDS = 25
 
 
-def _tool_check_pretrade_job(session: Session, _: str, args: dict[str, Any]) -> dict[str, Any]:
+def _tool_check_pretrade_job(
+    session: Session, _: str, args: dict[str, Any]
+) -> dict[str, Any]:
     import time
 
     job_id = args.get("job_id")
@@ -850,11 +950,16 @@ def _tool_check_pretrade_job(session: Session, _: str, args: dict[str, Any]) -> 
         raise ValueError(f"Job #{job_id} not found.")
 
     if job.job_type != JOB_TYPE_PRETRADE_CHECK:
-        raise ValueError(f"Job #{job_id} is not a pretrade check job (type: {job.job_type}).")
+        raise ValueError(
+            f"Job #{job_id} is not a pretrade check job (type: {job.job_type})."
+        )
 
     # Poll until the job finishes or we hit the timeout
     waited = 0.0
-    while job.status not in ("completed", "failed") and waited < _PRETRADE_POLL_MAX_SECONDS:
+    while (
+        job.status not in ("completed", "failed")
+        and waited < _PRETRADE_POLL_MAX_SECONDS
+    ):
         time.sleep(_PRETRADE_POLL_INTERVAL)
         waited += _PRETRADE_POLL_INTERVAL
         session.expire(job)
@@ -881,7 +986,9 @@ def _tool_check_pretrade_job(session: Session, _: str, args: dict[str, Any]) -> 
         }
 
 
-def _tool_submit_order(session: Session, latest_user_text: str, args: dict[str, Any]) -> dict[str, Any]:
+def _tool_submit_order(
+    session: Session, latest_user_text: str, args: dict[str, Any]
+) -> dict[str, Any]:
     operator_confirmed = _coerce_bool_arg(args, "operator_confirmed", False)
     if not operator_confirmed:
         raise ValueError("Order submission requires operator_confirmed=true.")
@@ -897,7 +1004,9 @@ def _tool_submit_order(session: Session, latest_user_text: str, args: dict[str, 
         if job.job_type != JOB_TYPE_PRETRADE_CHECK:
             raise ValueError(f"Job #{pretrade_job_id} is not a pretrade check job.")
         if job.status != "completed":
-            raise ValueError(f"Pretrade job #{pretrade_job_id} is not completed (status: {job.status}).")
+            raise ValueError(
+                f"Pretrade job #{pretrade_job_id} is not completed (status: {job.status})."
+            )
         if not job.result:
             raise ValueError(f"Pretrade job #{pretrade_job_id} has no result data.")
 
@@ -922,9 +1031,11 @@ def _tool_submit_order(session: Session, latest_user_text: str, args: dict[str, 
         raise ValueError(f"Account #{account_id} not found.")
 
     # Look up contract details from the contracts table
-    contract_ref = session.execute(
-        select(ContractRef).where(ContractRef.con_id == con_id)
-    ).scalars().first()
+    contract_ref = (
+        session.execute(select(ContractRef).where(ContractRef.con_id == con_id))
+        .scalars()
+        .first()
+    )
     if contract_ref is None:
         raise ValueError(f"Contract with con_id={con_id} not found in database.")
 
@@ -1007,7 +1118,9 @@ def _load_model_config() -> _TradebotModelConfig:
 
     base_url = get_str_env("TRADEBOT_LLM_BASE_URL", _DEFAULT_LLM_BASE_URL)
     model = get_str_env("TRADEBOT_LLM_MODEL", _DEFAULT_LLM_MODEL)
-    timeout_seconds = get_int_env("TRADEBOT_LLM_TIMEOUT_SECONDS", _DEFAULT_TIMEOUT_SECONDS)
+    timeout_seconds = get_int_env(
+        "TRADEBOT_LLM_TIMEOUT_SECONDS", _DEFAULT_TIMEOUT_SECONDS
+    )
     return _TradebotModelConfig(
         api_key=api_key,
         base_url=base_url.rstrip("/"),
@@ -1040,7 +1153,9 @@ def _call_llm(
         },
     )
     try:
-        with request.urlopen(req, timeout=config.timeout_seconds) as response:
+        with request.urlopen(
+            req, timeout=config.timeout_seconds
+        ) as response:  # nosec B310
             raw = response.read().decode("utf-8")
     except error.HTTPError as exc:
         details = exc.read().decode("utf-8", errors="replace")
@@ -1068,10 +1183,16 @@ def _execute_tool_call(
     try:
         args_obj = json.loads(arguments_json) if arguments_json.strip() else {}
     except json.JSONDecodeError:
-        return {"ok": False, "error": f"Arguments for tool '{tool_name}' were not valid JSON."}
+        return {
+            "ok": False,
+            "error": f"Arguments for tool '{tool_name}' were not valid JSON.",
+        }
 
     if not isinstance(args_obj, dict):
-        return {"ok": False, "error": f"Arguments for tool '{tool_name}' must be an object."}
+        return {
+            "ok": False,
+            "error": f"Arguments for tool '{tool_name}' must be an object.",
+        }
 
     try:
         return {"ok": True, "result": handler(session, latest_user_text, args_obj)}

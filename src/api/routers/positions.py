@@ -9,7 +9,9 @@ from sqlalchemy.orm import Session
 
 from src.api.deps import get_db
 from src.models import Account, Position
+
 router = APIRouter()
+DB_SESSION_DEPENDENCY = Depends(get_db)
 
 
 class PositionResponse(BaseModel):
@@ -35,7 +37,7 @@ class PositionResponse(BaseModel):
 
 
 @router.get("/positions", response_model=list[PositionResponse])
-def list_positions(db: Session = Depends(get_db)):
+def list_positions(db: Session = DB_SESSION_DEPENDENCY):
     stmt = select(Position, Account).outerjoin(
         Account, Position.account_id == Account.id
     )

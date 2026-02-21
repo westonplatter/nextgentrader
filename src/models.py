@@ -2,7 +2,17 @@
 
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, JSON, DateTime, Float, Index, Integer, String, Text, UniqueConstraint
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    DateTime,
+    Float,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -15,11 +25,19 @@ class ContractRef(Base):
     __table_args__ = (
         Index(
             "ix_contracts_fut_lookup",
-            "symbol", "sec_type", "is_active", "contract_expiry",
+            "symbol",
+            "sec_type",
+            "is_active",
+            "contract_expiry",
         ),
         Index(
             "ix_contracts_option_lookup",
-            "symbol", "sec_type", "is_active", "strike", "right", "contract_expiry",
+            "symbol",
+            "sec_type",
+            "is_active",
+            "strike",
+            "right",
+            "contract_expiry",
         ),
     )
 
@@ -167,9 +185,15 @@ class Job(Base):
         nullable=False,
         default=lambda: datetime.now(timezone.utc),
     )
-    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    started_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    completed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    archived_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

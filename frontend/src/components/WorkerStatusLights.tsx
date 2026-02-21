@@ -85,7 +85,9 @@ export default function WorkerStatusLights() {
             className="inline-flex items-center gap-2 text-xs text-gray-600"
             title={`${row.status} (${formatAge(row.seconds_since_heartbeat)} ago) ${row.details ?? ""}`}
           >
-            <span className={`inline-block h-2.5 w-2.5 rounded-full ${LIGHT_CLASS[row.light]}`} />
+            <span
+              className={`inline-block h-2.5 w-2.5 rounded-full ${LIGHT_CLASS[row.light]}`}
+            />
             <span>{label}</span>
           </div>
         );

@@ -10,12 +10,13 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import logging
 import os
 import time
 from typing import Any
 
 from dotenv import load_dotenv
-from ib_async import Contract, IB, MarketOrder, Trade
+from ib_async import IB, Contract, MarketOrder, Trade
 from sqlalchemy import inspect, select, update
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
@@ -28,10 +29,12 @@ from src.services.cl_contracts import (
     select_front_month_contract,
 )
 from src.services.jobs import JOB_TYPE_POSITIONS_SYNC, enqueue_job_if_idle
-from src.services.order_queue import apply_order_progress, append_order_event, now_utc
+from src.services.order_queue import append_order_event, apply_order_progress, now_utc
 from src.services.worker_heartbeat import WORKER_TYPE_ORDERS, upsert_worker_heartbeat
 from src.utils.env_vars import get_int_env
 from src.utils.ibkr_account import mask_ibkr_account
+
+logger = logging.getLogger("worker:orders")
 
 
 def load_env(env_name: str) -> None:
@@ -42,7 +45,9 @@ def load_env(env_name: str) -> None:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Process queued orders and execute in TWS.")
+    parser = argparse.ArgumentParser(
+        description="Process queued orders and execute in TWS."
+    )
     parser.add_argument("--env", choices=["dev", "prod"], default="dev")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=None)
@@ -67,7 +72,9 @@ def parse_args() -> argparse.Namespace:
         default=5.0,
         help="Delay between connect retries.",
     )
-    parser.add_argument("--once", action="store_true", help="Process one queue pass and exit.")
+    parser.add_argument(
+        "--once", action="store_true", help="Process one queue pass and exit."
+    )
     return parser.parse_args()
 
 
@@ -98,7 +105,9 @@ def get_cl_min_days_to_expiry() -> int:
 
 
 def get_or_qualify_contract(ib: IB, order: Order) -> Contract:
-    cl_min_days_to_expiry = get_cl_min_days_to_expiry() if order.symbol == "CL" else None
+    cl_min_days_to_expiry = (
+        get_cl_min_days_to_expiry() if order.symbol == "CL" else None
+    )
 
     if order.con_id:
         contract_kwargs: dict[str, Any] = {
@@ -139,7 +148,9 @@ def get_or_qualify_contract(ib: IB, order: Order) -> Contract:
     return qualified[0]
 
 
-def sync_trade_progress(session: Session, order: Order, trade: Trade, event_type: str) -> None:
+def sync_trade_progress(
+    session: Session, order: Order, trade: Trade, event_type: str
+) -> None:
     changed = apply_order_progress(
         order=order,
         ib_status=trade.orderStatus.status,
@@ -171,7 +182,9 @@ def process_order(
         order.status = "failed"
         order.last_error = f"Missing account row for account_id={order.account_id}"
         order.updated_at = now_utc()
-        append_order_event(session, order, "order_error", order.last_error or "Unknown error")
+        append_order_event(
+            session, order, "order_error", order.last_error or "Unknown error"
+        )
         return
 
     try:
@@ -292,7 +305,10 @@ def connect_tws_with_retries(
         if attempt < max_attempts:
             time.sleep(retry_seconds)
 
-    assert last_exc is not None
+    if last_exc is None:
+        raise RuntimeError(
+            "Unable to connect to TWS/Gateway and no error details were captured."
+        )
     raise RuntimeError(
         f"Unable to connect to TWS/Gateway after {max_attempts} attempt(s). Last error: {last_exc}"
     ) from last_exc
@@ -301,7 +317,9 @@ def connect_tws_with_retries(
 def run_worker(args: argparse.Namespace) -> int:
     port = args.port if args.port is not None else get_int_env("BROKER_TWS_PORT")
     if port is None:
-        raise SystemExit("BROKER_TWS_PORT is not set. Pass --port or set BROKER_TWS_PORT.")
+        raise SystemExit(
+            "BROKER_TWS_PORT is not set. Pass --port or set BROKER_TWS_PORT."
+        )
     engine = get_engine()
     ib = IB()
     upsert_worker_heartbeat(
@@ -349,7 +367,12 @@ def run_worker(args: argparse.Namespace) -> int:
         while True:
             processed = 0
             with Session(engine) as session:
-                stmt = select(Order.id).where(Order.status == "queued").order_by(Order.created_at.asc()).limit(20)
+                stmt = (
+                    select(Order.id)
+                    .where(Order.status == "queued")
+                    .order_by(Order.created_at.asc())
+                    .limit(20)
+                )
                 order_ids = list(session.execute(stmt).scalars().all())
                 for order_id in order_ids:
                     order = claim_queued_order_for_submission(session, order_id)
@@ -394,8 +417,8 @@ def run_worker(args: argparse.Namespace) -> int:
                 status="stopped",
                 details="worker exiting",
             )
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("failed to persist worker shutdown heartbeat: %s", exc)
         if ib.isConnected():
             ib.disconnect()
             print("Disconnected from TWS/Gateway.")

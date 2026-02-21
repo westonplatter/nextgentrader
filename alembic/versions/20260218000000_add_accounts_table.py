@@ -5,15 +5,16 @@ Revises: a6c9b6424a2f
 Create Date: 2026-02-18 00:00:00.000000
 
 """
+
 from typing import Sequence, Union
 
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = 'b7d1e2f3a4c5'
-down_revision: Union[str, Sequence[str], None] = 'a6c9b6424a2f'
+revision: str = "b7d1e2f3a4c5"
+down_revision: Union[str, Sequence[str], None] = "a6c9b6424a2f"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -50,7 +51,9 @@ def upgrade() -> None:
     op.drop_column("positions", "account")
 
     # 7. Add new unique constraint on (account_id, con_id)
-    op.create_unique_constraint("uq_account_id_con_id", "positions", ["account_id", "con_id"])
+    op.create_unique_constraint(
+        "uq_account_id_con_id", "positions", ["account_id", "con_id"]
+    )
 
 
 def downgrade() -> None:

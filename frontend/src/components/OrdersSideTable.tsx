@@ -24,7 +24,12 @@ const STATUS_CLASS: Record<string, string> = {
   rejected: "text-red-700 bg-red-100",
   failed: "text-red-700 bg-red-100",
 };
-const TERMINAL_STATUSES = new Set(["filled", "cancelled", "rejected", "failed"]);
+const TERMINAL_STATUSES = new Set([
+  "filled",
+  "cancelled",
+  "rejected",
+  "failed",
+]);
 
 function parseTime(value: string | null): number | null {
   if (!value) return null;
@@ -128,7 +133,9 @@ export default function OrdersSideTable() {
       next.add(orderId);
       return next;
     });
-    fetch(`http://localhost:8000/api/v1/orders/${orderId}/cancel`, { method: "POST" })
+    fetch(`http://localhost:8000/api/v1/orders/${orderId}/cancel`, {
+      method: "POST",
+    })
       .then(async (res) => {
         if (!res.ok) {
           throw new Error(await res.text());
@@ -177,7 +184,9 @@ export default function OrdersSideTable() {
             )}
             {orders.map((order) => (
               <tr key={order.id} className="border-b border-gray-200 align-top">
-                <td className="px-2 py-1 font-mono text-gray-800">{order.id}</td>
+                <td className="px-2 py-1 font-mono text-gray-800">
+                  {order.id}
+                </td>
                 <td className="px-2 py-1 text-gray-700">
                   {order.side} {order.quantity} {order.symbol}
                   {order.contract_month ? ` ${order.contract_month}` : ""}
@@ -190,9 +199,15 @@ export default function OrdersSideTable() {
                     {order.status}
                   </span>
                 </td>
-                <td className="px-2 py-1 text-gray-700">{formatDuration(computeQueueMs(order, nowMs))}</td>
-                <td className="px-2 py-1 text-gray-700">{formatDuration(computeRunMs(order, nowMs))}</td>
-                <td className="px-2 py-1 text-gray-700">{formatDuration(computeTotalMs(order, nowMs))}</td>
+                <td className="px-2 py-1 text-gray-700">
+                  {formatDuration(computeQueueMs(order, nowMs))}
+                </td>
+                <td className="px-2 py-1 text-gray-700">
+                  {formatDuration(computeRunMs(order, nowMs))}
+                </td>
+                <td className="px-2 py-1 text-gray-700">
+                  {formatDuration(computeTotalMs(order, nowMs))}
+                </td>
                 <td className="px-2 py-1">
                   {order.status === "queued" && (
                     <button

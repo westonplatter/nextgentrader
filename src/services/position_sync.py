@@ -20,7 +20,9 @@ def check_positions_tables_ready(engine: Engine) -> None:
             raise RuntimeError(f"'{required}' table does not exist. Run: task migrate")
 
 
-def get_or_create_accounts(session: Session, account_strings: set[str]) -> dict[str, int]:
+def get_or_create_accounts(
+    session: Session, account_strings: set[str]
+) -> dict[str, int]:
     lookup: dict[str, int] = {}
     for account_string in account_strings:
         row = session.execute(
@@ -51,7 +53,9 @@ def sync_positions_once(
                 f"(host={host}, port={port}, client_id={client_id}, timeout={connect_timeout_seconds}s)."
             ) from exc
         positions = ib.positions()
-        position_accounts = {position.account for position in positions if position.account}
+        position_accounts = {
+            position.account for position in positions if position.account
+        }
         scope_accounts = position_accounts
 
         now = datetime.now(timezone.utc)
@@ -66,7 +70,9 @@ def sync_positions_once(
             # Replace semantics per fetched account scope:
             # clear prior snapshot rows for these accounts, then insert fresh rows.
             if scope_account_ids:
-                session.execute(delete(Position).where(Position.account_id.in_(scope_account_ids)))
+                session.execute(
+                    delete(Position).where(Position.account_id.in_(scope_account_ids))
+                )
 
             for position in positions:
                 contract = position.contract

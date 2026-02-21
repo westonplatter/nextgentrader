@@ -108,7 +108,9 @@ def complete_job(session: Session, job: Job, result: dict) -> None:
     session.flush()
 
 
-def fail_or_retry_job(session: Session, job: Job, error_text: str, retry_delay_seconds: int = 5) -> None:
+def fail_or_retry_job(
+    session: Session, job: Job, error_text: str, retry_delay_seconds: int = 5
+) -> None:
     now = now_utc()
     job.attempts += 1
     job.last_error = error_text

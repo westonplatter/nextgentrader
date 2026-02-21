@@ -10,10 +10,10 @@ entries:
   composite-agents-md:
     source:
       composite:
-      - ./AGENTS.local.md
-      - https://github.com/westonplatter/agentically.git:agents-md-partials/AGENTS.python.md
-      - https://github.com/westonplatter/agentically.git:agents-md-partials/AGENTS.pandas.md
-      - https://github.com/westonplatter/agentically.git:agents-md-partials/AGENTS.docs.md
-      - https://github.com/westonplatter/agentically.git:agents-md-partials/AGENTS.pull-requests.md
+        - ./AGENTS.local.md
+        - https://github.com/westonplatter/agentically.git:agents-md-partials/AGENTS.python.md
+        - https://github.com/westonplatter/agentically.git:agents-md-partials/AGENTS.pandas.md
+        - https://github.com/westonplatter/agentically.git:agents-md-partials/AGENTS.docs.md
+        - https://github.com/westonplatter/agentically.git:agents-md-partials/AGENTS.pull-requests.md
     dest: ./AGENTS.md
     checksum: sha256:034cbcc22d9e2b6f59d915828b2a9e80137a2706ad84f907c7a230e70fab3cb3

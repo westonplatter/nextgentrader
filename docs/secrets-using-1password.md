@@ -6,12 +6,13 @@ This project uses [1Password CLI](https://developer.1password.com/docs/cli/) (`o
 
 Environment files (`.env.dev`, `.env.prod`) can contain a mix of plain values and 1Password secret references. A secret reference uses the `op://` URI format:
 
-```
+```text
 op://Vault/Item/Field
 ```
 
 For example:
-```
+
+```bash
 # Plain value
 DB_HOST=127.0.0.1
 
@@ -20,6 +21,7 @@ DB_PASSWORD=op://ngtr8der_dev/database/password
 ```
 
 When you run a command with `op run --env-file=<file>`, the 1Password CLI:
+
 1. Reads the env file
 2. Resolves any `op://` references to actual secret values
 3. Injects them as environment variables into the subprocess

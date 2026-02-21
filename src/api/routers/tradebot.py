@@ -11,6 +11,7 @@ from src.api.deps import get_db
 from src.services.tradebot_agent import ChatInputMessage, run_tradebot_agent
 
 router = APIRouter()
+DB_SESSION_DEPENDENCY = Depends(get_db)
 
 
 class ChatPart(BaseModel):
@@ -52,7 +53,9 @@ def _to_agent_messages(messages: list[ChatMessage]) -> list[ChatInputMessage]:
 
 
 @router.post("/tradebot/chat", response_class=PlainTextResponse)
-def tradebot_chat(body: TradebotChatRequest, db: Session = Depends(get_db)) -> str:
+def tradebot_chat(
+    body: TradebotChatRequest, db: Session = DB_SESSION_DEPENDENCY
+) -> str:
     normalized_messages = _to_agent_messages(body.messages)
     if not normalized_messages:
         raise HTTPException(status_code=400, detail="No chat message text found")

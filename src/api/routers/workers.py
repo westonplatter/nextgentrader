@@ -12,6 +12,7 @@ from src.models import WorkerHeartbeat
 from src.services.worker_heartbeat import WORKER_TYPE_JOBS, WORKER_TYPE_ORDERS
 
 router = APIRouter()
+DB_SESSION_DEPENDENCY = Depends(get_db)
 
 GREEN_SECONDS = 12.0
 YELLOW_SECONDS = 30.0
@@ -38,7 +39,9 @@ def classify_light(status: str, seconds_since_heartbeat: float | None) -> str:
     return "red"
 
 
-def to_response(now: datetime, row: WorkerHeartbeat | None, worker_type: str) -> WorkerStatusResponse:
+def to_response(
+    now: datetime, row: WorkerHeartbeat | None, worker_type: str
+) -> WorkerStatusResponse:
     if row is None:
         return WorkerStatusResponse(
             worker_type=worker_type,
@@ -61,9 +64,14 @@ def to_response(now: datetime, row: WorkerHeartbeat | None, worker_type: str) ->
 
 
 @router.get("/workers/status", response_model=list[WorkerStatusResponse])
-def list_worker_statuses(db: Session = Depends(get_db)) -> list[WorkerStatusResponse]:
+def list_worker_statuses(
+    db: Session = DB_SESSION_DEPENDENCY,
+) -> list[WorkerStatusResponse]:
     rows = db.execute(select(WorkerHeartbeat)).scalars().all()
     by_type = {row.worker_type: row for row in rows}
     now = datetime.now(timezone.utc)
     worker_types = [WORKER_TYPE_ORDERS, WORKER_TYPE_JOBS]
-    return [to_response(now, by_type.get(worker_type), worker_type) for worker_type in worker_types]
+    return [
+        to_response(now, by_type.get(worker_type), worker_type)
+        for worker_type in worker_types
+    ]

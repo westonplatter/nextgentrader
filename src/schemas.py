@@ -2,7 +2,6 @@
 
 import pandera.pandas as pa
 
-
 positions_schema = pa.DataFrameSchema(
     columns={
         "account": pa.Column(str, nullable=False),

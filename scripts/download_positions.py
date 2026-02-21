@@ -11,8 +11,8 @@ import os
 from dotenv import load_dotenv
 
 from src.db import get_engine
-from src.utils.env_vars import get_int_env
 from src.services.position_sync import check_positions_tables_ready, sync_positions_once
+from src.utils.env_vars import get_int_env
 
 
 def load_env(env_name: str) -> None:
@@ -48,7 +48,7 @@ def main():
         print(f"Saved {saved_count} position(s) to database.")
     except Exception as e:
         print(f"Error: {e}")
-        raise SystemExit(1)
+        raise SystemExit(1) from e
 
 
 if __name__ == "__main__":

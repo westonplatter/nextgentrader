@@ -10,6 +10,7 @@ from src.models import Account
 from src.utils.ibkr_account import mask_ibkr_account
 
 router = APIRouter()
+DB_SESSION_DEPENDENCY = Depends(get_db)
 
 
 class AccountResponse(BaseModel):
@@ -30,13 +31,13 @@ class AccountUpdate(BaseModel):
 
 
 @router.get("/accounts", response_model=list[AccountResponse])
-def list_accounts(db: Session = Depends(get_db)):
+def list_accounts(db: Session = DB_SESSION_DEPENDENCY):
     result = db.execute(select(Account))
     return result.scalars().all()
 
 
 @router.get("/accounts/{account_id}", response_model=AccountResponse)
-def get_account(account_id: int, db: Session = Depends(get_db)):
+def get_account(account_id: int, db: Session = DB_SESSION_DEPENDENCY):
     account = db.get(Account, account_id)
     if not account:
         raise HTTPException(status_code=404, detail="Account not found")
@@ -44,7 +45,9 @@ def get_account(account_id: int, db: Session = Depends(get_db)):
 
 
 @router.patch("/accounts/{account_id}", response_model=AccountResponse)
-def update_account(account_id: int, body: AccountUpdate, db: Session = Depends(get_db)):
+def update_account(
+    account_id: int, body: AccountUpdate, db: Session = DB_SESSION_DEPENDENCY
+):
     account = db.get(Account, account_id)
     if not account:
         raise HTTPException(status_code=404, detail="Account not found")

@@ -8,9 +8,7 @@
       "release-type": "python",
       "package-name": "ngtrader",
       "component": "ngtrader",
-      "extra-files": [
-        "pyproject.toml"
-      ]
+      "extra-files": ["pyproject.toml"]
     }
   },
   "changelog-sections": [

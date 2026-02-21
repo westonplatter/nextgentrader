@@ -8,7 +8,7 @@ Usage:
 
 import argparse
 import os
-import subprocess
+import subprocess  # noqa: S404  # nosec B404
 import sys
 
 from dotenv import load_dotenv
@@ -54,10 +54,16 @@ def main():
 
     # Run alembic migrations
     print("Running migrations ...")
-    result = subprocess.run(
+    result = subprocess.run(  # noqa: S603  # nosec B603
         [sys.executable, "-m", "alembic", "upgrade", "head"],
-        env={**os.environ, "DB_HOST": host, "DB_PORT": port,
-             "DB_NAME": db_name, "DB_USER": user, "DB_PASSWORD": password},
+        env={
+            **os.environ,
+            "DB_HOST": host,
+            "DB_PORT": port,
+            "DB_NAME": db_name,
+            "DB_USER": user,
+            "DB_PASSWORD": password,
+        },
     )
     if result.returncode != 0:
         print("Migration failed!")

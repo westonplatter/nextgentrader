@@ -59,6 +59,7 @@ Base path suggestion: `/api/internal/v1/mastra`
 - `GET /jobs?kind=&status=&limit=`
 
 Rules:
+
 - Read-only
 - Cursor pagination for high-volume endpoints
 - Stable response schemas with explicit versioning
@@ -70,12 +71,14 @@ Rules:
 `POST /actions/plan`
 
 Request:
+
 - `action_type`: `positions.sync | order.submit.cl | order.cancel | ...`
 - `payload`: typed object by action
 - `requested_by`: operator identity
 - `chat_context`: optional trace info
 
 Response:
+
 - `plan_id`
 - `normalized_payload`
 - `risk_checks`: pass/fail with reasons
@@ -89,18 +92,21 @@ Response:
 `POST /actions/execute`
 
 Request:
+
 - `plan_id`
 - `confirmation_token`
 - `idempotency_key`
 - `requested_by`
 
 Response:
+
 - `action_id`
 - `status`: `queued | rejected | duplicate`
 - `queue_target`: `worker:orders | worker:jobs`
 - `resource_refs`: e.g. `order_id`, `job_id`
 
 Execution rules:
+
 - Reject expired/invalid confirmation token
 - Reject if idempotency key replays with mismatched payload
 - Queue work; do not synchronously call broker
@@ -177,15 +183,19 @@ Track per-service metrics:
 ## Rollout Plan
 
 1. Read-only cutover
+
 - Mastra serves chat, reads from FastAPI only
 
 2. Action planning only
+
 - Enable `actions/plan`, return previews, no execute
 
 3. Guarded execution for one action
+
 - Enable `order.submit.cl` execute with strict limits
 
 4. Broaden action surface
+
 - Add cancel/replace/sync actions after audit + metrics review
 
 ## Minimal First Implementation

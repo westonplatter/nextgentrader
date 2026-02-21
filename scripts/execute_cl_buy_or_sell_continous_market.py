@@ -171,7 +171,9 @@ def main() -> int:
         order.tif = "DAY"
 
         current_init_margin, current_maint_margin = get_current_margin(ib, account)
-        margin_info = get_what_if_margin(ib, qualified_contract, action, args.qty, account)
+        margin_info = get_what_if_margin(
+            ib, qualified_contract, action, args.qty, account
+        )
         expected_init_margin = margin_info["init_margin_after"]
         expected_maint_margin = margin_info["maint_margin_after"]
 
@@ -188,7 +190,9 @@ def main() -> int:
         print("Pre-trade checks:")
         print(f"  Current Initial Margin: {format_money(current_init_margin)}")
         print(f"  Current Maintenance Margin: {format_money(current_maint_margin)}")
-        print(f"  Expected Initial Margin (post-trade): {format_money(expected_init_margin)}")
+        print(
+            f"  Expected Initial Margin (post-trade): {format_money(expected_init_margin)}"
+        )
         print(
             "  Expected Maintenance Margin (post-trade):"
             f" {format_money(expected_maint_margin)}"
@@ -208,9 +212,9 @@ def main() -> int:
 
         if not args.yes:
             print()
-            confirmation = input(
-                f"Type {action} to submit this live order: "
-            ).strip().upper()
+            confirmation = (
+                input(f"Type {action} to submit this live order: ").strip().upper()
+            )
             if confirmation != action:
                 print("Order cancelled by user.")
                 return 0

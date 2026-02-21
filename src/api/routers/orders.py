@@ -13,6 +13,7 @@ from src.services.order_queue import append_order_event, now_utc
 
 router = APIRouter()
 TERMINAL_ORDER_STATUSES = {"filled", "cancelled", "rejected", "failed"}
+DB_SESSION_DEPENDENCY = Depends(get_db)
 
 
 class OrderCreateRequest(BaseModel):
@@ -125,7 +126,7 @@ def to_order_event_response(event: OrderEvent) -> OrderEventResponse:
 
 
 @router.get("/orders", response_model=list[OrderResponse])
-def list_orders(db: Session = Depends(get_db)) -> list[OrderResponse]:
+def list_orders(db: Session = DB_SESSION_DEPENDENCY) -> list[OrderResponse]:
     stmt = (
         select(Order, Account)
         .outerjoin(Account, Order.account_id == Account.id)
@@ -136,9 +137,11 @@ def list_orders(db: Session = Depends(get_db)) -> list[OrderResponse]:
 
 
 @router.get("/orders/{order_id}", response_model=OrderResponse)
-def get_order(order_id: int, db: Session = Depends(get_db)) -> OrderResponse:
-    stmt = select(Order, Account).outerjoin(Account, Order.account_id == Account.id).where(
-        Order.id == order_id
+def get_order(order_id: int, db: Session = DB_SESSION_DEPENDENCY) -> OrderResponse:
+    stmt = (
+        select(Order, Account)
+        .outerjoin(Account, Order.account_id == Account.id)
+        .where(Order.id == order_id)
     )
     row = db.execute(stmt).one_or_none()
     if row is None:
@@ -148,7 +151,9 @@ def get_order(order_id: int, db: Session = Depends(get_db)) -> OrderResponse:
 
 
 @router.post("/orders", response_model=OrderResponse, status_code=201)
-def create_order(body: OrderCreateRequest, db: Session = Depends(get_db)) -> OrderResponse:
+def create_order(
+    body: OrderCreateRequest, db: Session = DB_SESSION_DEPENDENCY
+) -> OrderResponse:
     account = db.get(Account, body.account_id)
     if account is None:
         raise HTTPException(status_code=400, detail="Invalid account_id")
@@ -185,20 +190,28 @@ def create_order(body: OrderCreateRequest, db: Session = Depends(get_db)) -> Ord
 
 
 @router.get("/orders/{order_id}/events", response_model=list[OrderEventResponse])
-def list_order_events(order_id: int, db: Session = Depends(get_db)) -> list[OrderEventResponse]:
+def list_order_events(
+    order_id: int, db: Session = DB_SESSION_DEPENDENCY
+) -> list[OrderEventResponse]:
     order = db.get(Order, order_id)
     if order is None:
         raise HTTPException(status_code=404, detail="Order not found")
 
-    stmt = select(OrderEvent).where(OrderEvent.order_id == order_id).order_by(OrderEvent.created_at)
+    stmt = (
+        select(OrderEvent)
+        .where(OrderEvent.order_id == order_id)
+        .order_by(OrderEvent.created_at)
+    )
     events = list(db.execute(stmt).scalars().all())
     return [to_order_event_response(event) for event in events]
 
 
 @router.post("/orders/{order_id}/cancel", response_model=OrderResponse)
-def cancel_order(order_id: int, db: Session = Depends(get_db)) -> OrderResponse:
-    stmt = select(Order, Account).outerjoin(Account, Order.account_id == Account.id).where(
-        Order.id == order_id
+def cancel_order(order_id: int, db: Session = DB_SESSION_DEPENDENCY) -> OrderResponse:
+    stmt = (
+        select(Order, Account)
+        .outerjoin(Account, Order.account_id == Account.id)
+        .where(Order.id == order_id)
     )
     row = db.execute(stmt).one_or_none()
     if row is None:

@@ -49,7 +49,9 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Process queued jobs.")
     parser.add_argument("--env", choices=["dev", "prod"], default="dev")
     parser.add_argument("--poll-seconds", type=float, default=2.0)
-    parser.add_argument("--once", action="store_true", help="Process one queue pass and exit.")
+    parser.add_argument(
+        "--once", action="store_true", help="Process one queue pass and exit."
+    )
     return parser.parse_args()
 
 
@@ -74,7 +76,9 @@ def handle_positions_sync(job: Job, engine: Engine) -> dict:
     else:
         port = get_int_env("BROKER_TWS_PORT")
     if port is None:
-        raise RuntimeError("BROKER_TWS_PORT is not set and no port was provided in job payload.")
+        raise RuntimeError(
+            "BROKER_TWS_PORT is not set and no port was provided in job payload."
+        )
 
     if isinstance(client_id_raw, int):
         client_id = client_id_raw
@@ -117,7 +121,9 @@ def handle_contracts_sync(job: Job, engine: Engine) -> dict:
     else:
         port = get_int_env("BROKER_TWS_PORT")
     if port is None:
-        raise RuntimeError("BROKER_TWS_PORT is not set and no port was provided in job payload.")
+        raise RuntimeError(
+            "BROKER_TWS_PORT is not set and no port was provided in job payload."
+        )
 
     if isinstance(client_id_raw, int):
         client_id = client_id_raw
@@ -126,6 +132,7 @@ def handle_contracts_sync(job: Job, engine: Engine) -> dict:
 
     # Build contract specs from payload, default to CL futures
     raw_specs = payload.get("specs")
+    specs: list[Contract]
     if isinstance(raw_specs, list) and raw_specs:
         specs = []
         for raw in raw_specs:
@@ -143,21 +150,27 @@ def handle_contracts_sync(job: Job, engine: Engine) -> dict:
                 )
 
             if sec_type == "FUT":
-                specs.append(Future(symbol=symbol, exchange=exchange, currency=currency))
+                specs.append(
+                    Future(symbol=symbol, exchange=exchange, currency=currency)
+                )
             elif sec_type in ("STK", "OPT"):
-                specs.append(Contract(
-                    symbol=symbol,
-                    secType=sec_type,
-                    exchange="SMART",
-                    currency=currency,
-                ))
+                specs.append(
+                    Contract(
+                        symbol=symbol,
+                        secType=sec_type,
+                        exchange="SMART",
+                        currency=currency,
+                    )
+                )
             else:
-                specs.append(Contract(
-                    symbol=symbol,
-                    secType=sec_type,
-                    exchange=exchange,
-                    currency=currency,
-                ))
+                specs.append(
+                    Contract(
+                        symbol=symbol,
+                        secType=sec_type,
+                        exchange=exchange,
+                        currency=currency,
+                    )
+                )
         if not specs:
             specs = [Future("CL", exchange="NYMEX", currency="USD")]
     else:
@@ -186,7 +199,9 @@ def handle_pretrade_check(job: Job, engine: Engine) -> dict:
 
     quantity = payload.get("quantity")
     if not isinstance(quantity, int) or quantity < 1:
-        raise ValueError("pretrade.check job requires positive integer 'quantity' in payload.")
+        raise ValueError(
+            "pretrade.check job requires positive integer 'quantity' in payload."
+        )
 
     account_id = payload.get("account_id")
     if not isinstance(account_id, int):
@@ -201,7 +216,9 @@ def handle_pretrade_check(job: Job, engine: Engine) -> dict:
     else:
         port = get_int_env("BROKER_TWS_PORT")
     if port is None:
-        raise RuntimeError("BROKER_TWS_PORT is not set and no port was provided in job payload.")
+        raise RuntimeError(
+            "BROKER_TWS_PORT is not set and no port was provided in job payload."
+        )
 
     if isinstance(client_id_raw, int):
         client_id = client_id_raw
@@ -266,7 +283,9 @@ def main() -> int:
 
                     handler = get_handler(job.job_type)
                     if handler is None:
-                        logger.warning("job #%d: unsupported job_type '%s'", job_id, job.job_type)
+                        logger.warning(
+                            "job #%d: unsupported job_type '%s'", job_id, job.job_type
+                        )
                         fail_or_retry_job(
                             session,
                             job,
@@ -283,7 +302,9 @@ def main() -> int:
                         logger.info("job #%d: completed %s", job_id, job.job_type)
                     except Exception as exc:
                         fail_or_retry_job(session, job, str(exc))
-                        logger.error("job #%d: failed %s — %s", job_id, job.job_type, exc)
+                        logger.error(
+                            "job #%d: failed %s — %s", job_id, job.job_type, exc
+                        )
                     session.commit()
 
             upsert_worker_heartbeat(
@@ -307,8 +328,8 @@ def main() -> int:
                 status="stopped",
                 details="worker exiting",
             )
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("failed to persist worker shutdown heartbeat: %s", exc)
 
 
 if __name__ == "__main__":

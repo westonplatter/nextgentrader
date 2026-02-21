@@ -20,7 +20,10 @@ function messageText(message: UIMessage): string {
 }
 
 function sanitizeOutboundText(text: string): string {
-  const withRedactedIbAccounts = text.replace(/\b[DdUuFf][a-zA-Z0-9]{6,}\b/g, "[redacted-account]");
+  const withRedactedIbAccounts = text.replace(
+    /\b[DdUuFf][a-zA-Z0-9]{6,}\b/g,
+    "[redacted-account]",
+  );
   return withRedactedIbAccounts.trim() || "[redacted]";
 }
 
@@ -39,12 +42,18 @@ export default function TradebotChat() {
                 parts: [
                   {
                     type: "text",
-                    text: message.role === "user" ? sanitizeOutboundText(text) : text,
+                    text:
+                      message.role === "user"
+                        ? sanitizeOutboundText(text)
+                        : text,
                   },
                 ],
               };
             })
-            .filter((message): message is Exclude<typeof message, null> => message !== null);
+            .filter(
+              (message): message is Exclude<typeof message, null> =>
+                message !== null,
+            );
           return {
             body: {
               id,
@@ -101,9 +110,16 @@ export default function TradebotChat() {
             )}
             <div className="space-y-3">
               {messages.map((message) => (
-                <div key={message.id} className="rounded border border-gray-200 p-3 text-sm">
-                  <p className="mb-1 text-xs uppercase tracking-wide text-gray-500">{message.role}</p>
-                  <pre className="whitespace-pre-wrap font-sans text-gray-900">{messageText(message) || "…"}</pre>
+                <div
+                  key={message.id}
+                  className="rounded border border-gray-200 p-3 text-sm"
+                >
+                  <p className="mb-1 text-xs uppercase tracking-wide text-gray-500">
+                    {message.role}
+                  </p>
+                  <pre className="whitespace-pre-wrap font-sans text-gray-900">
+                    {messageText(message) || "…"}
+                  </pre>
                 </div>
               ))}
             </div>
@@ -142,7 +158,9 @@ export default function TradebotChat() {
           </form>
 
           <p className="mt-2 text-xs text-gray-500">Status: {status}</p>
-          {error && <p className="mt-1 text-xs text-red-600">Error: {error.message}</p>}
+          {error && (
+            <p className="mt-1 text-xs text-red-600">Error: {error.message}</p>
+          )}
         </div>
         <JobsTable />
         <OrdersSideTable />

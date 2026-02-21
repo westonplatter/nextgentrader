@@ -1,4 +1,10 @@
-import { Navigate, NavLink, Route, Routes, useLocation } from "react-router-dom";
+import {
+  Navigate,
+  NavLink,
+  Route,
+  Routes,
+  useLocation,
+} from "react-router-dom";
 import AccountsTable from "./components/AccountsTable";
 import OrdersTable from "./components/OrdersTable";
 import PositionsTable from "./components/PositionsTable";

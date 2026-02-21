@@ -129,9 +129,12 @@ export default function JobsTable() {
 
   const rerunJob = (jobId: number) =>
     withAction(jobId, async () => {
-      const res = await fetch(`http://localhost:8000/api/v1/jobs/${jobId}/rerun`, {
-        method: "POST",
-      });
+      const res = await fetch(
+        `http://localhost:8000/api/v1/jobs/${jobId}/rerun`,
+        {
+          method: "POST",
+        },
+      );
       if (!res.ok) {
         throw new Error(await res.text());
       }
@@ -139,9 +142,12 @@ export default function JobsTable() {
 
   const archiveJob = (jobId: number) =>
     withAction(jobId, async () => {
-      const res = await fetch(`http://localhost:8000/api/v1/jobs/${jobId}/archive`, {
-        method: "POST",
-      });
+      const res = await fetch(
+        `http://localhost:8000/api/v1/jobs/${jobId}/archive`,
+        {
+          method: "POST",
+        },
+      );
       if (!res.ok) {
         throw new Error(await res.text());
       }
@@ -184,14 +190,23 @@ export default function JobsTable() {
                 <td className="px-2 py-1">
                   <span
                     className={`rounded px-1.5 py-0.5 ${STATUS_CLASS[job.status] ?? "text-gray-700 bg-gray-100"}`}
-                    title={job.last_error ?? `attempts ${job.attempts}/${job.max_attempts}`}
+                    title={
+                      job.last_error ??
+                      `attempts ${job.attempts}/${job.max_attempts}`
+                    }
                   >
                     {job.status}
                   </span>
                 </td>
-                <td className="px-2 py-1 text-gray-700">{formatDuration(computeQueueMs(job, nowMs))}</td>
-                <td className="px-2 py-1 text-gray-700">{formatDuration(computeRunMs(job, nowMs))}</td>
-                <td className="px-2 py-1 text-gray-700">{formatDuration(computeTotalMs(job, nowMs))}</td>
+                <td className="px-2 py-1 text-gray-700">
+                  {formatDuration(computeQueueMs(job, nowMs))}
+                </td>
+                <td className="px-2 py-1 text-gray-700">
+                  {formatDuration(computeRunMs(job, nowMs))}
+                </td>
+                <td className="px-2 py-1 text-gray-700">
+                  {formatDuration(computeTotalMs(job, nowMs))}
+                </td>
                 <td className="px-2 py-1">
                   <div className="flex gap-1">
                     {job.status === "failed" && (

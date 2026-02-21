@@ -9,6 +9,7 @@ Create Date: 2026-02-19 12:00:00.000000
 from typing import Sequence, Union
 
 import sqlalchemy as sa
+
 from alembic import op
 
 # revision identifiers, used by Alembic.
@@ -19,7 +20,9 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.add_column("jobs", sa.Column("archived_at", sa.DateTime(timezone=True), nullable=True))
+    op.add_column(
+        "jobs", sa.Column("archived_at", sa.DateTime(timezone=True), nullable=True)
+    )
     op.create_index("ix_jobs_archived_at", "jobs", ["archived_at"])
 
 

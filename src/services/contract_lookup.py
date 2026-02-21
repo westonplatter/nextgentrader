@@ -82,7 +82,9 @@ def select_contract(
 
     if sec_upper in ("OPT", "FOP"):
         return _select_option(
-            session, symbol, sec_upper,
+            session,
+            symbol,
+            sec_upper,
             contract_month=contract_month,
             min_days_to_expiry=min_days_to_expiry,
             strike=strike,
@@ -92,7 +94,9 @@ def select_contract(
 
     # FUT (and any other expiry-based type)
     return _select_future(
-        session, symbol, sec_upper,
+        session,
+        symbol,
+        sec_upper,
         contract_month=contract_month,
         min_days_to_expiry=min_days_to_expiry,
         allow_fallback=allow_fallback,
@@ -180,7 +184,9 @@ def _pick_month(
         selected_month = requested_contract_month
     elif requested_contract_month and not requested_available:
         if not allow_fallback:
-            available_text = ", ".join(display_contract_month(m) for m in available_months)
+            available_text = ", ".join(
+                display_contract_month(m) for m in available_months
+            )
             raise ValueError(
                 f"{display_contract_month(requested_contract_month)} {label} contract is not currently available. "
                 f"Available contract months: {available_text}."
@@ -190,7 +196,13 @@ def _pick_month(
         selected_month = available_months[0]
 
     selected, selected_dte = contracts_by_month[selected_month]
-    return selected, selected_dte, requested_contract_month, requested_available, available_months
+    return (
+        selected,
+        selected_dte,
+        requested_contract_month,
+        requested_available,
+        available_months,
+    )
 
 
 def _build_result(
@@ -248,10 +260,15 @@ def _select_future(
 
     contracts_by_month = _group_by_month(candidates)
     if not contracts_by_month:
-        raise ValueError(f"No {symbol} {sec_type} contracts with valid contract_month data.")
+        raise ValueError(
+            f"No {symbol} {sec_type} contracts with valid contract_month data."
+        )
 
     selected, dte, req_month, req_available, avail_months = _pick_month(
-        contracts_by_month, contract_month, allow_fallback, f"{symbol} {sec_type}",
+        contracts_by_month,
+        contract_month,
+        allow_fallback,
+        f"{symbol} {sec_type}",
     )
     return _build_result(selected, dte, req_month, req_available, avail_months)
 
@@ -268,14 +285,22 @@ def _select_option(
 ) -> dict[str, Any]:
     # If strike/right provided, filter directly
     candidates = _load_candidates(
-        session, symbol, sec_type, min_days_to_expiry,
-        strike=strike, right=right,
+        session,
+        symbol,
+        sec_type,
+        min_days_to_expiry,
+        strike=strike,
+        right=right,
     )
 
     if not candidates and strike is not None:
         # No exact strike match — find available strikes to report
-        all_candidates = _load_candidates(session, symbol, sec_type, min_days_to_expiry, right=right)
-        available_strikes = sorted({c.strike for c, _ in all_candidates if c.strike is not None})
+        all_candidates = _load_candidates(
+            session, symbol, sec_type, min_days_to_expiry, right=right
+        )
+        available_strikes = sorted(
+            {c.strike for c, _ in all_candidates if c.strike is not None}
+        )
         strikes_text = ", ".join(str(s) for s in available_strikes[:20])
         raise ValueError(
             f"No active {symbol} {sec_type} contract with strike={strike}. "
@@ -291,9 +316,14 @@ def _select_option(
 
     contracts_by_month = _group_by_month(candidates)
     if not contracts_by_month:
-        raise ValueError(f"No {symbol} {sec_type} contracts with valid contract_month data.")
+        raise ValueError(
+            f"No {symbol} {sec_type} contracts with valid contract_month data."
+        )
 
     selected, dte, req_month, req_available, avail_months = _pick_month(
-        contracts_by_month, contract_month, allow_fallback, f"{symbol} {sec_type}",
+        contracts_by_month,
+        contract_month,
+        allow_fallback,
+        f"{symbol} {sec_type}",
     )
     return _build_result(selected, dte, req_month, req_available, avail_months)

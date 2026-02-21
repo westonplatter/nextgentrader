@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import math
 
-from ib_async import Contract, IB, MarketOrder, Ticker
+from ib_async import IB, Contract, MarketOrder, Ticker
 from sqlalchemy import Engine, select
 from sqlalchemy.orm import Session
 
@@ -113,7 +113,9 @@ def run_pretrade_check(
             select(ContractRef).where(ContractRef.con_id == con_id)
         ).scalar_one_or_none()
         if contract_ref is None:
-            raise ValueError(f"No contract found with con_id={con_id}. Run contracts.sync first.")
+            raise ValueError(
+                f"No contract found with con_id={con_id}. Run contracts.sync first."
+            )
 
         account = session.get(Account, account_id)
         if account is None:
@@ -148,7 +150,9 @@ def run_pretrade_check(
                 f"Expected exactly one qualified contract for conId={con_id}, got {len(qualified)}"
             )
 
-        margin_info = get_what_if_margin(ib, qualified[0], side, quantity, account_string)
+        margin_info = get_what_if_margin(
+            ib, qualified[0], side, quantity, account_string
+        )
 
         tickers = ib.reqTickers(qualified[0])
         reference_price = get_reference_price(tickers[0]) if tickers else None

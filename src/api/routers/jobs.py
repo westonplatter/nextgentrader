@@ -12,6 +12,7 @@ from src.models import Job
 from src.services.jobs import enqueue_job, now_utc
 
 router = APIRouter()
+DB_SESSION_DEPENDENCY = Depends(get_db)
 
 
 class JobResponse(BaseModel):
@@ -59,7 +60,7 @@ def to_job_response(job: Job) -> JobResponse:
 @router.get("/jobs", response_model=list[JobResponse])
 def list_jobs(
     include_archived: bool = Query(default=False),
-    db: Session = Depends(get_db),
+    db: Session = DB_SESSION_DEPENDENCY,
 ) -> list[JobResponse]:
     stmt = select(Job)
     if not include_archived:
@@ -69,7 +70,7 @@ def list_jobs(
 
 
 @router.get("/jobs/{job_id}", response_model=JobResponse)
-def get_job(job_id: int, db: Session = Depends(get_db)) -> JobResponse:
+def get_job(job_id: int, db: Session = DB_SESSION_DEPENDENCY) -> JobResponse:
     job = db.get(Job, job_id)
     if job is None:
         raise HTTPException(status_code=404, detail="Job not found")
@@ -77,7 +78,7 @@ def get_job(job_id: int, db: Session = Depends(get_db)) -> JobResponse:
 
 
 @router.post("/jobs/{job_id}/rerun", response_model=JobResponse, status_code=201)
-def rerun_job(job_id: int, db: Session = Depends(get_db)) -> JobResponse:
+def rerun_job(job_id: int, db: Session = DB_SESSION_DEPENDENCY) -> JobResponse:
     job = db.get(Job, job_id)
     if job is None:
         raise HTTPException(status_code=404, detail="Job not found")
@@ -101,7 +102,7 @@ def rerun_job(job_id: int, db: Session = Depends(get_db)) -> JobResponse:
 
 
 @router.post("/jobs/{job_id}/archive", response_model=JobResponse)
-def archive_job(job_id: int, db: Session = Depends(get_db)) -> JobResponse:
+def archive_job(job_id: int, db: Session = DB_SESSION_DEPENDENCY) -> JobResponse:
     job = db.get(Job, job_id)
     if job is None:
         raise HTTPException(status_code=404, detail="Job not found")

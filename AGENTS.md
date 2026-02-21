@@ -11,23 +11,28 @@ If any `docs/*.md` file is added, modified, renamed, or deleted (excluding `docs
 ## Python
 
 ### Verifying Code
+
 - Never run Python or shell to test code
 - Use Ruff for fast feedback during edits
 - Require Pyright to pass before declaring changes correct
 
 ### Code Organization
+
 - Always place python imports at top of file
 - Never import packages in functions
 
-### Principles
+### Python Principles
+
 1. **Use `uv run python`** - Always execute Python commands via `uv run python ...` to ensure consistent dependency management and virtual environment isolation.
 2. **Type hints everywhere** - Use type annotations for function signatures and variables to improve code clarity and enable better static analysis.
 3. **Prefer standard library** - Use Python's standard library when possible before reaching for third-party packages. This reduces dependencies and improves portability.
 4. **Explicit over implicit** - Write clear, readable code that makes intent obvious. Avoid magic methods and metaprogramming unless there's a compelling reason.
 
 ### Progress Bars
+
 Use `tqdm` for user-facing scripts or long-running processes to provide feedback.
 To keep log statements above the progress bar (preventing visual conflicts):
+
 ```python
 from tqdm import tqdm
 
@@ -53,7 +58,7 @@ logging.basicConfig(handlers=[TqdmLoggingHandler()], level=logging.INFO)
 
 ## Pandas
 
-### Principles
+### Pandas Principles
 
 1. **Use vectorized operations** - Avoid iterating over rows with `for` loops or `.iterrows()`. Use built-in vectorized methods for performance.
 
@@ -83,6 +88,7 @@ Compact, high signal to noise write descriptions optimized for an engineer-to-en
 ## Pull Requests
 
 ### Pull Request Description
+
 When opening or updating pull requests, include the following write-up in the PR body.
 
 - Summary (required). Less than 100 words. What changed and why (not a file list)

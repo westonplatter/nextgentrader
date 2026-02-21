@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-import subprocess
+import subprocess  # nosec B404
 from typing import overload
 
 
@@ -50,7 +50,7 @@ def get_str_env(name: str, default: str | None = None) -> str | None:
 
 def resolve_1password_reference(name: str, reference: str) -> str:
     try:
-        result = subprocess.run(
+        result = subprocess.run(  # nosec B603, B607
             ["op", "read", reference],
             check=True,
             capture_output=True,

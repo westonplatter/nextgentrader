@@ -9,6 +9,7 @@ Create Date: 2026-02-19 09:00:00.000000
 from typing import Sequence, Union
 
 import sqlalchemy as sa
+
 from alembic import op
 
 # revision identifiers, used by Alembic.
@@ -65,7 +66,9 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
     )
     op.create_index(
-        "ix_order_events_order_id_created_at", "order_events", ["order_id", "created_at"]
+        "ix_order_events_order_id_created_at",
+        "order_events",
+        ["order_id", "created_at"],
     )
 
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from ib_async import Contract, IB
+from ib_async import IB, Contract
 from sqlalchemy import Engine
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
@@ -53,10 +53,16 @@ def sync_contracts(
             with Session(engine) as session:
                 for detail in contract_details:
                     contract = detail.contract
-                    if contract is None or contract.conId is None or contract.conId == 0:
+                    if (
+                        contract is None
+                        or contract.conId is None
+                        or contract.conId == 0
+                    ):
                         continue
 
-                    raw_expiry = (contract.lastTradeDateOrContractMonth or "").strip() or None
+                    raw_expiry = (
+                        contract.lastTradeDateOrContractMonth or ""
+                    ).strip() or None
                     contract_month = format_contract_month_from_expiry(raw_expiry)
 
                     values = {
@@ -70,8 +76,16 @@ def sync_contracts(
                         "contract_month": contract_month,
                         "contract_expiry": raw_expiry,
                         "multiplier": contract.multiplier or None,
-                        "strike": contract.strike if contract.strike and contract.strike != 0.0 else None,
-                        "right": contract.right if contract.right and contract.right != "?" else None,
+                        "strike": (
+                            contract.strike
+                            if contract.strike and contract.strike != 0.0
+                            else None
+                        ),
+                        "right": (
+                            contract.right
+                            if contract.right and contract.right != "?"
+                            else None
+                        ),
                         "primary_exchange": contract.primaryExchange or None,
                         "is_active": True,
                         "fetched_at": now,

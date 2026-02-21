@@ -47,11 +47,11 @@ psql -d ngtrader_dev -c "SELECT p.account_id, a.alias, p.symbol, p.sec_type, p.p
 
 ## Key files
 
-| File | Purpose |
-|------|---------|
-| `src/db.py` | Builds SQLAlchemy engine from env vars |
-| `src/models.py` | `Account` and `Position` SQLAlchemy models |
-| `src/schemas.py` | Pandera schema for positions DataFrame validation |
-| `scripts/setup_db.py` | Creates DB + runs migrations |
-| `scripts/download_positions.py` | Pulls positions from TWS, saves to DB |
-| `alembic/` | Migration files (Rails-style datetime naming) |
+| File                            | Purpose                                           |
+| ------------------------------- | ------------------------------------------------- |
+| `src/db.py`                     | Builds SQLAlchemy engine from env vars            |
+| `src/models.py`                 | `Account` and `Position` SQLAlchemy models        |
+| `src/schemas.py`                | Pandera schema for positions DataFrame validation |
+| `scripts/setup_db.py`           | Creates DB + runs migrations                      |
+| `scripts/download_positions.py` | Pulls positions from TWS, saves to DB             |
+| `alembic/`                      | Migration files (Rails-style datetime naming)     |

@@ -54,7 +54,7 @@ def main():
                     break
     except Exception as e:
         print(f"Connection failed: {e}")
-        raise SystemExit(1)
+        raise SystemExit(1) from e
     finally:
         if ib.isConnected():
             ib.disconnect()

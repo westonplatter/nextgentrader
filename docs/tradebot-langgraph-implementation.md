@@ -5,6 +5,7 @@
 This change replaces rule-based chat intent parsing with an LLM-driven LangGraph workflow.
 
 Tradebot now:
+
 - uses conversation history (not only last message)
 - uses tool calls for DB reads and operational actions
 - can enqueue jobs and queue orders through explicit tools
@@ -36,6 +37,7 @@ Tradebot now:
 ## LangGraph Workflow
 
 State graph:
+
 - `model` node: calls OpenAI-compatible `chat/completions`
 - `tools` node: executes requested function tools
 - conditional edge:
@@ -44,19 +46,20 @@ State graph:
   - if max tool steps reached -> return tool-step-limit response
 
 Runtime constraints:
+
 - max chat history sent to model: 16 messages
 - max tool loop iterations: 8
 
 ## Tool Surface
 
-| Function | Description | Any Guardrails |
-|---|---|---|
-| `list_accounts` | Lists available brokerage accounts for routing. | Read-only DB query. |
-| `list_positions` | Returns current positions from the database. | Read-only DB query. Optional `limit` constrained to 1-200. |
-| `list_jobs` | Returns recent job queue records. | Read-only DB query. `limit` constrained to 1-200. |
-| `list_orders` | Returns recent orders and optional recent events per order. | Read-only DB query. `limit` constrained to 1-200; `events_per_order` constrained to 1-20. |
-| `enqueue_positions_sync_job` | Enqueues a `positions.sync` job for `worker:jobs`. | Writes to `jobs` queue only. `max_attempts` constrained to 1-10. |
-| `submit_cl_order` | Queues a CL futures order for `worker:orders`. | Requires `operator_confirmed=true`; validates side/quantity; resolves account; requires `BROKER_TWS_PORT`; qualifies CL contract before queueing. |
+| Function                     | Description                                                 | Any Guardrails                                                                                                                                    |
+| ---------------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `list_accounts`              | Lists available brokerage accounts for routing.             | Read-only DB query.                                                                                                                               |
+| `list_positions`             | Returns current positions from the database.                | Read-only DB query. Optional `limit` constrained to 1-200.                                                                                        |
+| `list_jobs`                  | Returns recent job queue records.                           | Read-only DB query. `limit` constrained to 1-200.                                                                                                 |
+| `list_orders`                | Returns recent orders and optional recent events per order. | Read-only DB query. `limit` constrained to 1-200; `events_per_order` constrained to 1-20.                                                         |
+| `enqueue_positions_sync_job` | Enqueues a `positions.sync` job for `worker:jobs`.          | Writes to `jobs` queue only. `max_attempts` constrained to 1-10.                                                                                  |
+| `submit_cl_order`            | Queues a CL futures order for `worker:orders`.              | Requires `operator_confirmed=true`; validates side/quantity; resolves account; requires `BROKER_TWS_PORT`; qualifies CL contract before queueing. |
 
 ## Safety and Side Effects
 
@@ -75,5 +78,6 @@ Runtime constraints:
 ## Validation
 
 Static checks run during implementation:
+
 - Ruff: passed
 - Pyright: passed
