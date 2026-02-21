@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import os
-import subprocess  # nosec B404
+import shutil
+import subprocess  # noqa: S404  # nosec B404
 from typing import overload
 
 
@@ -49,17 +50,19 @@ def get_str_env(name: str, default: str | None = None) -> str | None:
 
 
 def resolve_1password_reference(name: str, reference: str) -> str:
+    op_executable = shutil.which("op")
+    if op_executable is None:
+        raise ValueError(
+            f"{name} uses 1Password reference '{reference}', but `op` CLI is not installed."
+        )
+
     try:
-        result = subprocess.run(  # nosec B603, B607
-            ["op", "read", reference],
+        result = subprocess.run(  # noqa: S603  # nosec B603
+            [op_executable, "read", reference],
             check=True,
             capture_output=True,
             text=True,
         )
-    except FileNotFoundError as exc:
-        raise ValueError(
-            f"{name} uses 1Password reference '{reference}', but `op` CLI is not installed."
-        ) from exc
     except subprocess.CalledProcessError as exc:
         details = (exc.stderr or exc.stdout or "").strip()
         if details:

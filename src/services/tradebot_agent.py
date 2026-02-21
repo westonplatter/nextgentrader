@@ -9,7 +9,7 @@ import json
 import os
 from dataclasses import dataclass
 from typing import Any, Sequence, TypedDict
-from urllib import error, request
+from urllib import error, parse, request
 
 from langgraph.graph import END, START, StateGraph
 from sqlalchemy import func, select
@@ -1142,6 +1142,13 @@ def _call_llm(
     }
 
     endpoint = f"{config.base_url}/chat/completions"
+    parsed_endpoint = parse.urlparse(endpoint)
+    if parsed_endpoint.scheme not in {"http", "https"}:
+        raise ValueError(
+            "TRADEBOT_LLM_BASE_URL must use http or https (for example: https://api.openai.com/v1)."
+        )
+    if not parsed_endpoint.netloc:
+        raise ValueError("TRADEBOT_LLM_BASE_URL must include a network host.")
     body = json.dumps(payload).encode("utf-8")
     req = request.Request(
         endpoint,
@@ -1155,7 +1162,7 @@ def _call_llm(
     try:
         with request.urlopen(
             req, timeout=config.timeout_seconds
-        ) as response:  # nosec B310
+        ) as response:  # noqa: S310  # nosec B310
             raw = response.read().decode("utf-8")
     except error.HTTPError as exc:
         details = exc.read().decode("utf-8", errors="replace")
