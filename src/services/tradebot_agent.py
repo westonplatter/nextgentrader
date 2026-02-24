@@ -1,5 +1,5 @@
 # BOUNDARY: This module must NEVER import ib_async or make direct broker connections.
-# All IB interactions happen through jobs processed by worker:jobs or worker:orders.
+# All IB interactions happen through worker:jobs. Order execution is disabled.
 
 """LLM-backed tradebot agent with LangGraph tool workflows."""
 
@@ -15,20 +15,27 @@ from langgraph.graph import END, START, StateGraph
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from src.models import Account, ContractRef, Job, Order, OrderEvent, Position
+from src.models import (
+    Account,
+    Job,
+    Order,
+    OrderEvent,
+    Position,
+    WatchList,
+    WatchListInstrument,
+)
 from src.services.cl_contracts import (
     DEFAULT_CL_MIN_DAYS_TO_EXPIRY,
     display_contract_month,
     normalize_contract_month_input,
 )
-from src.services.contract_lookup import find_contracts, select_contract
+from src.services.contract_lookup import find_contracts
 from src.services.jobs import (
     JOB_TYPE_CONTRACTS_SYNC,
     JOB_TYPE_POSITIONS_SYNC,
-    JOB_TYPE_PRETRADE_CHECK,
+    JOB_TYPE_WATCHLIST_ADD_INSTRUMENT,
     enqueue_job,
 )
-from src.services.order_queue import append_order_event, now_utc
 from src.utils.env_vars import get_int_env, get_str_env
 from src.utils.ibkr_account import mask_ibkr_account
 
@@ -37,23 +44,14 @@ _SYSTEM_PROMPT = (
     "Use tools for factual data access and side effects. "
     "Never fabricate DB data, job IDs, order IDs, fills, or statuses. "
     "When a user asks for current state, call read tools first. "
-    "You can enqueue positions sync jobs, contracts sync jobs, and queue orders for any symbol. "
+    "You can enqueue positions sync jobs and contracts sync jobs. "
     "For informational queries about contracts (front month, available months, contract details), use lookup_contract. "
-    "Only use preview_order when the user wants to place/queue a trade. "
-    "Do NOT set run_pretrade_check=true unless the user explicitly asks for margin or pretrade checks. "
-    "For order requests, call preview_order with the symbol, sec_type, side, and quantity. "
-    "For futures (sec_type=FUT), optionally pass contract_month (YYYY-MM or month name). "
-    "For options (sec_type=OPT or FOP), also pass strike and right (C or P). "
-    "For stocks (sec_type=STK), just pass symbol and sec_type. "
-    "Parse natural language descriptions into structured args "
-    "(e.g. 'CL 65 call next Wed' -> symbol=CL, sec_type=FOP, strike=65, right=C, contract_month from 'next Wed'). "
-    "After preview_order, present contract details to the user and confirm before submitting. "
-    "Include contract month and account label in the confirmation message. "
-    "If requested month is unavailable, explain that and ask whether to proceed with available month. "
-    "If run_pretrade_check was used, call check_pretrade_job to get margin results before confirming. "
-    "When submitting, pass the con_id, side, quantity, and account_id from the preview_order result. "
-    "If a pretrade_job_id is available, also pass it to submit_order. "
-    "Before submitting an order, ensure the user clearly asked to place/queue/submit it. "
+    "Order execution is disabled in this system. "
+    "If asked to place, queue, submit, or cancel an order, explain that execution is disabled "
+    "and offer read-only alternatives like listing orders/positions or looking up contracts. "
+    "You can also manage watch lists: create watch lists, add instruments to them, list them, and remove instruments. "
+    "When adding instruments to a watch list, use add_watch_list_instrument which enqueues a job to fetch "
+    "the contract directly from IBKR. Then use check_watchlist_job to poll for the result. "
     "Keep responses concise and operator-focused."
 )
 _MAX_MESSAGES = 16
@@ -210,7 +208,7 @@ _TOOL_SPECS: list[dict[str, Any]] = [
             "description": (
                 "Read-only lookup of contract details from the database. "
                 "Use this for informational queries like 'what is the front month for CL?' "
-                "or 'what NQ contracts are available?'. Does NOT start a pretrade check."
+                "or 'what NQ contracts are available?'. This is read-only and has no side effects."
             ),
             "parameters": {
                 "type": "object",
@@ -245,28 +243,84 @@ _TOOL_SPECS: list[dict[str, Any]] = [
     {
         "type": "function",
         "function": {
-            "name": "preview_order",
+            "name": "list_watch_lists",
+            "description": "List all watch lists with instrument counts.",
+            "parameters": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": False,
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "create_watch_list",
+            "description": "Create a new watch list.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "Name of the watch list",
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "Optional description",
+                    },
+                },
+                "required": ["name"],
+                "additionalProperties": False,
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_watch_list",
+            "description": "Get a watch list with all its instruments.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "watch_list_id": {
+                        "type": "integer",
+                        "description": "ID of the watch list",
+                    },
+                },
+                "required": ["watch_list_id"],
+                "additionalProperties": False,
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "add_watch_list_instrument",
             "description": (
-                "Preview order routing details (contract/account) from the contracts DB. "
-                "Optionally enqueue a pre-trade margin check job by setting run_pretrade_check=true."
+                "Add an instrument to a watch list by fetching its contract from IBKR. "
+                "Enqueues a background job that connects to IBKR, fetches the single contract, "
+                "upserts it into contract_refs, and adds it to the watch list. "
+                "Returns a job_id — use check_watchlist_job to poll for the result."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
+                    "watch_list_id": {
+                        "type": "integer",
+                        "description": "ID of the watch list to add to",
+                    },
                     "symbol": {
                         "type": "string",
-                        "description": "Ticker symbol, e.g. CL, ES, NQ, AAPL",
+                        "description": "Ticker symbol, e.g. CL, ES, AAPL",
                     },
                     "sec_type": {
                         "type": "string",
-                        "enum": ["FUT", "OPT", "FOP", "STK"],
+                        "enum": ["STK", "FUT", "OPT", "FOP"],
+                        "description": "Security type",
                     },
-                    "side": {"type": "string", "enum": ["BUY", "SELL", "buy", "sell"]},
-                    "quantity": {"type": "integer", "minimum": 1, "maximum": 1000},
-                    "account_ref": {"type": "string"},
                     "contract_month": {
                         "type": "string",
-                        "description": "YYYY-MM or month name like 'March 2026'",
+                        "description": "YYYY-MM or month name like 'April 2026'",
                     },
                     "strike": {
                         "type": "number",
@@ -277,13 +331,8 @@ _TOOL_SPECS: list[dict[str, Any]] = [
                         "enum": ["C", "P"],
                         "description": "Call or Put for OPT/FOP",
                     },
-                    "run_pretrade_check": {
-                        "type": "boolean",
-                        "default": False,
-                        "description": "Set true only if user asks for margin/pretrade check",
-                    },
                 },
-                "required": ["symbol", "sec_type", "side", "quantity"],
+                "required": ["watch_list_id", "symbol", "sec_type"],
                 "additionalProperties": False,
             },
         },
@@ -291,14 +340,21 @@ _TOOL_SPECS: list[dict[str, Any]] = [
     {
         "type": "function",
         "function": {
-            "name": "check_pretrade_job",
-            "description": "Check the status/result of a pre-trade margin check job.",
+            "name": "remove_watch_list_instrument",
+            "description": "Remove an instrument from a watch list.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "job_id": {"type": "integer"},
+                    "watch_list_id": {
+                        "type": "integer",
+                        "description": "ID of the watch list",
+                    },
+                    "instrument_id": {
+                        "type": "integer",
+                        "description": "ID of the instrument to remove",
+                    },
                 },
-                "required": ["job_id"],
+                "required": ["watch_list_id", "instrument_id"],
                 "additionalProperties": False,
             },
         },
@@ -306,40 +362,21 @@ _TOOL_SPECS: list[dict[str, Any]] = [
     {
         "type": "function",
         "function": {
-            "name": "submit_order",
+            "name": "check_watchlist_job",
             "description": (
-                "Queue a live order for worker:orders. "
-                "Pass con_id, side, quantity, and account_id from preview_order. "
-                "Optionally pass pretrade_job_id if a pretrade check was run. "
-                "This has real trading impact."
+                "Poll a watchlist.add_instrument job for its result. "
+                "Returns instrument details when completed, error when failed, "
+                "or a 'still running' message if not yet done. Call again if still running."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "con_id": {
+                    "job_id": {
                         "type": "integer",
-                        "description": "Contract ID from preview_order",
+                        "description": "The job ID returned by add_watch_list_instrument",
                     },
-                    "side": {"type": "string", "enum": ["BUY", "SELL"]},
-                    "quantity": {"type": "integer", "minimum": 1, "maximum": 1000},
-                    "account_id": {
-                        "type": "integer",
-                        "description": "Account ID from preview_order",
-                    },
-                    "pretrade_job_id": {
-                        "type": "integer",
-                        "description": "Optional pretrade job ID if pretrade check was run",
-                    },
-                    "operator_confirmed": {"type": "boolean"},
-                    "request_text": {"type": "string"},
                 },
-                "required": [
-                    "con_id",
-                    "side",
-                    "quantity",
-                    "account_id",
-                    "operator_confirmed",
-                ],
+                "required": ["job_id"],
                 "additionalProperties": False,
             },
         },
@@ -423,32 +460,6 @@ def _coerce_optional_str_arg(args: dict[str, Any], key: str) -> str | None:
         raise ValueError(f"'{key}' must be a string.")
     value = raw.strip()
     return value or None
-
-
-def _resolve_account(session: Session, account_ref: str | None) -> Account:
-    if account_ref is None or account_ref.lower() in {"[redacted]", "redacted"}:
-        account = (
-            session.execute(select(Account).order_by(Account.id)).scalars().first()
-        )
-        if account is None:
-            raise ValueError(
-                "No account found. Ingest positions first so accounts are available."
-            )
-        return account
-
-    if account_ref.isdigit():
-        account = session.get(Account, int(account_ref))
-        if account is not None:
-            return account
-
-    stmt = select(Account).where(
-        (func.lower(Account.account) == account_ref.lower())
-        | (func.lower(func.coalesce(Account.alias, "")) == account_ref.lower())
-    )
-    account = session.execute(stmt).scalars().first()
-    if account is None:
-        raise ValueError(f"Unknown account '{account_ref}'.")
-    return account
 
 
 def _tool_list_accounts(
@@ -778,9 +789,94 @@ def _tool_lookup_contract(
     }
 
 
-def _tool_preview_order(
+def _tool_list_watch_lists(
+    session: Session, _: str, args: dict[str, Any]
+) -> dict[str, Any]:
+    count_subq = (
+        select(func.count(WatchListInstrument.id))
+        .where(WatchListInstrument.watch_list_id == WatchList.id)
+        .correlate(WatchList)
+        .scalar_subquery()
+    )
+    stmt = select(WatchList, count_subq).order_by(WatchList.created_at.desc())
+    rows = session.execute(stmt).all()
+    return {
+        "watch_lists": [
+            {
+                "id": wl.id,
+                "name": wl.name,
+                "description": wl.description,
+                "instrument_count": count,
+            }
+            for wl, count in rows
+        ]
+    }
+
+
+def _tool_create_watch_list(
+    session: Session, _: str, args: dict[str, Any]
+) -> dict[str, Any]:
+    name = args.get("name")
+    if not isinstance(name, str) or not name.strip():
+        raise ValueError("'name' must be a non-empty string.")
+    description = _coerce_optional_str_arg(args, "description")
+    wl = WatchList(name=name.strip(), description=description)
+    session.add(wl)
+    session.commit()
+    session.refresh(wl)
+    return {"id": wl.id, "name": wl.name, "description": wl.description}
+
+
+def _tool_get_watch_list(
+    session: Session, _: str, args: dict[str, Any]
+) -> dict[str, Any]:
+    wl_id = args.get("watch_list_id")
+    if not isinstance(wl_id, int):
+        raise ValueError("'watch_list_id' must be an integer.")
+    wl = session.get(WatchList, wl_id)
+    if wl is None:
+        raise ValueError(f"Watch list #{wl_id} not found.")
+    instruments = (
+        session.execute(
+            select(WatchListInstrument)
+            .where(WatchListInstrument.watch_list_id == wl_id)
+            .order_by(WatchListInstrument.created_at)
+        )
+        .scalars()
+        .all()
+    )
+    return {
+        "id": wl.id,
+        "name": wl.name,
+        "description": wl.description,
+        "instruments": [
+            {
+                "id": inst.id,
+                "con_id": inst.con_id,
+                "symbol": inst.symbol,
+                "sec_type": inst.sec_type,
+                "exchange": inst.exchange,
+                "local_symbol": inst.local_symbol,
+                "contract_month": inst.contract_month,
+                "contract_expiry": inst.contract_expiry,
+                "strike": inst.strike,
+                "right": inst.right,
+            }
+            for inst in instruments
+        ],
+    }
+
+
+def _tool_add_watch_list_instrument(
     session: Session, latest_user_text: str, args: dict[str, Any]
 ) -> dict[str, Any]:
+    wl_id = args.get("watch_list_id")
+    if not isinstance(wl_id, int):
+        raise ValueError("'watch_list_id' must be an integer.")
+    wl = session.get(WatchList, wl_id)
+    if wl is None:
+        raise ValueError(f"Watch list #{wl_id} not found.")
+
     symbol_raw = args.get("symbol")
     if not isinstance(symbol_raw, str) or not symbol_raw.strip():
         raise ValueError("'symbol' must be a non-empty string.")
@@ -790,18 +886,9 @@ def _tool_preview_order(
     if not isinstance(sec_type_raw, str) or not sec_type_raw.strip():
         raise ValueError("'sec_type' must be a non-empty string.")
     sec_type = sec_type_raw.strip().upper()
-    if sec_type not in {"FUT", "OPT", "FOP", "STK"}:
-        raise ValueError("'sec_type' must be one of FUT, OPT, FOP, STK.")
+    if sec_type not in {"STK", "FUT", "OPT", "FOP"}:
+        raise ValueError("'sec_type' must be one of STK, FUT, OPT, FOP.")
 
-    side_raw = args.get("side")
-    if not isinstance(side_raw, str):
-        raise ValueError("'side' must be a string.")
-    side = side_raw.strip().upper()
-    if side not in {"BUY", "SELL"}:
-        raise ValueError("'side' must be BUY or SELL.")
-
-    quantity = _coerce_int_arg(args, "quantity", 1, 1, 1000)
-    account_ref = _coerce_optional_str_arg(args, "account_ref")
     requested_contract_month_raw = _coerce_optional_str_arg(args, "contract_month")
     requested_contract_month = normalize_contract_month_input(
         requested_contract_month_raw
@@ -812,135 +899,43 @@ def _tool_preview_order(
     right = _coerce_optional_str_arg(args, "right")
     if right is not None:
         right = right.upper()
-        if right not in {"C", "P"}:
-            raise ValueError("'right' must be 'C' or 'P'.")
 
-    account = _resolve_account(session, account_ref)
+    exchange = _resolve_exchange(symbol, sec_type)
 
-    min_days_to_expiry = get_int_env(
-        "BROKER_CL_MIN_DAYS_TO_EXPIRY", DEFAULT_CL_MIN_DAYS_TO_EXPIRY
-    )
-
-    selected = select_contract(
-        session=session,
-        symbol=symbol,
-        sec_type=sec_type,
-        contract_month=requested_contract_month,
-        min_days_to_expiry=min_days_to_expiry,
-        strike=strike,
-        right=right,
-        allow_fallback=True,
-    )
-
-    run_pretrade_check = _coerce_bool_arg(args, "run_pretrade_check", False)
-
-    pretrade_job_id = None
-    pretrade_job_status = None
-    if run_pretrade_check:
-        job = enqueue_job(
-            session=session,
-            job_type=JOB_TYPE_PRETRADE_CHECK,
-            payload={
-                "con_id": selected["con_id"],
-                "side": side,
-                "quantity": quantity,
-                "account_id": account.id,
-            },
-            source=_TOOL_SOURCE,
-            request_text=latest_user_text,
-        )
-        pretrade_job_id = job.id
-        pretrade_job_status = job.status
-
-    session.commit()
-
-    account_label = account.alias or mask_ibkr_account(account.account)
-    available_account_count = session.execute(
-        select(func.count(Account.id))
-    ).scalar_one()
-    selected_month = selected["contract_month"] or "unknown"
-    selected_month_display = (
-        display_contract_month(selected_month)
-        if selected_month != "unknown"
-        else "unknown"
-    )
-    requested_month_display = (
-        display_contract_month(selected["requested_contract_month"])
-        if selected["requested_contract_month"] is not None
-        else None
-    )
-
-    quantity_label = "contract" if quantity == 1 else "contracts"
-    action_label = "buying" if side == "BUY" else "selling"
-    account_intro = (
-        f"You have one brokerage account available: {account_label}."
-        if available_account_count == 1
-        else f"The selected brokerage account is {account_label}."
-    )
-
-    unavailable_response_text = None
-    if (
-        selected["requested_contract_month"] is not None
-        and not selected["requested_available"]
-        and requested_month_display is not None
-    ):
-        unavailable_response_text = (
-            f"The available {symbol} contract month for {action_label} {quantity} {quantity_label} is "
-            f"{selected_month_display} on the {account_label} account. "
-            f"{requested_month_display} contract is not currently available for order placement. "
-            f"Would you like to proceed with the {selected_month_display} contract instead?"
-        )
-
-    result: dict[str, Any] = {
-        "side": side,
-        "quantity": quantity,
+    payload: dict[str, Any] = {
+        "watch_list_id": wl_id,
         "symbol": symbol,
         "sec_type": sec_type,
-        "account_id": account.id,
-        "account": account_label,
-        "contract_month": selected["contract_month"],
-        "contract_month_display": selected_month_display,
-        "contract_expiry": selected["contract_expiry"],
-        "local_symbol": selected["local_symbol"],
-        "con_id": selected["con_id"],
-        "days_to_expiry": selected["days_to_expiry"],
-        "strike": selected.get("strike"),
-        "right": selected.get("right"),
-        "requested_contract_month": selected["requested_contract_month"],
-        "requested_contract_month_display": requested_month_display,
-        "requested_available": selected["requested_available"],
-        "available_contract_months": selected["available_contract_months"],
-        "available_contract_months_display": [
-            display_contract_month(month)
-            for month in selected["available_contract_months"]
-        ],
-        "unavailable_response_text": unavailable_response_text,
-        "confirmation_text": (
-            f"{account_intro} "
-            f"The {symbol} {sec_type} contract to trade is {selected_month_display}."
+        "exchange": exchange,
+    }
+    if requested_contract_month is not None:
+        payload["contract_month"] = requested_contract_month
+    if strike is not None:
+        payload["strike"] = strike
+    if right is not None:
+        payload["right"] = right
+
+    job = enqueue_job(
+        session=session,
+        job_type=JOB_TYPE_WATCHLIST_ADD_INSTRUMENT,
+        payload=payload,
+        source=_TOOL_SOURCE,
+        request_text=latest_user_text,
+    )
+    session.commit()
+    return {
+        "job_id": job.id,
+        "status": job.status,
+        "message": (
+            f"Enqueued job to fetch {symbol} {sec_type} from IBKR and add to watch list #{wl_id}. "
+            "Use check_watchlist_job to poll for the result."
         ),
     }
 
-    if pretrade_job_id is not None:
-        result["pretrade_job_id"] = pretrade_job_id
-        result["pretrade_job_status"] = pretrade_job_status
-        result["message"] = (
-            f"Running pre-trade margin check (job #{pretrade_job_id}). "
-            f"Call check_pretrade_job to see results."
-        )
 
-    return result
-
-
-_PRETRADE_POLL_INTERVAL = 2
-_PRETRADE_POLL_MAX_SECONDS = 25
-
-
-def _tool_check_pretrade_job(
+def _tool_check_watchlist_job(
     session: Session, _: str, args: dict[str, Any]
 ) -> dict[str, Any]:
-    import time
-
     job_id = args.get("job_id")
     if not isinstance(job_id, int):
         raise ValueError("'job_id' must be an integer.")
@@ -948,153 +943,54 @@ def _tool_check_pretrade_job(
     job = session.get(Job, job_id)
     if job is None:
         raise ValueError(f"Job #{job_id} not found.")
-
-    if job.job_type != JOB_TYPE_PRETRADE_CHECK:
+    if job.job_type != JOB_TYPE_WATCHLIST_ADD_INSTRUMENT:
         raise ValueError(
-            f"Job #{job_id} is not a pretrade check job (type: {job.job_type})."
+            f"Job #{job_id} is not a watchlist.add_instrument job "
+            f"(it is '{job.job_type}')."
         )
-
-    # Poll until the job finishes or we hit the timeout
-    waited = 0.0
-    while (
-        job.status not in ("completed", "failed")
-        and waited < _PRETRADE_POLL_MAX_SECONDS
-    ):
-        time.sleep(_PRETRADE_POLL_INTERVAL)
-        waited += _PRETRADE_POLL_INTERVAL
-        session.expire(job)
 
     if job.status == "completed":
         return {
-            "job_id": job.id,
-            "status": job.status,
+            "status": "completed",
             "result": job.result,
         }
     elif job.status == "failed":
         return {
-            "job_id": job.id,
-            "status": job.status,
-            "last_error": job.last_error,
-            "attempts": job.attempts,
-            "max_attempts": job.max_attempts,
+            "status": "failed",
+            "error": job.last_error,
         }
     else:
         return {
-            "job_id": job.id,
             "status": job.status,
-            "message": f"Pre-trade check is still running after {int(waited)}s. Call check_pretrade_job again.",
+            "message": "Job is still running. Call check_watchlist_job again shortly.",
         }
 
 
-def _tool_submit_order(
-    session: Session, latest_user_text: str, args: dict[str, Any]
+def _tool_remove_watch_list_instrument(
+    session: Session, _: str, args: dict[str, Any]
 ) -> dict[str, Any]:
-    operator_confirmed = _coerce_bool_arg(args, "operator_confirmed", False)
-    if not operator_confirmed:
-        raise ValueError("Order submission requires operator_confirmed=true.")
+    wl_id = args.get("watch_list_id")
+    if not isinstance(wl_id, int):
+        raise ValueError("'watch_list_id' must be an integer.")
+    inst_id = args.get("instrument_id")
+    if not isinstance(inst_id, int):
+        raise ValueError("'instrument_id' must be an integer.")
 
-    request_text = _coerce_optional_str_arg(args, "request_text") or latest_user_text
-    pretrade_job_id = args.get("pretrade_job_id")
-
-    # If pretrade job provided, pull contract info from it
-    if isinstance(pretrade_job_id, int):
-        job = session.get(Job, pretrade_job_id)
-        if job is None:
-            raise ValueError(f"Job #{pretrade_job_id} not found.")
-        if job.job_type != JOB_TYPE_PRETRADE_CHECK:
-            raise ValueError(f"Job #{pretrade_job_id} is not a pretrade check job.")
-        if job.status != "completed":
-            raise ValueError(
-                f"Pretrade job #{pretrade_job_id} is not completed (status: {job.status})."
+    inst = (
+        session.execute(
+            select(WatchListInstrument).where(
+                WatchListInstrument.id == inst_id,
+                WatchListInstrument.watch_list_id == wl_id,
             )
-        if not job.result:
-            raise ValueError(f"Pretrade job #{pretrade_job_id} has no result data.")
-
-    # Get order params — from args (direct from preview_order)
-    con_id = args.get("con_id")
-    if not isinstance(con_id, int):
-        raise ValueError("'con_id' must be an integer.")
-
-    side_raw = args.get("side")
-    if not isinstance(side_raw, str) or side_raw.upper() not in ("BUY", "SELL"):
-        raise ValueError("'side' must be BUY or SELL.")
-    side = side_raw.upper()
-
-    quantity = _coerce_int_arg(args, "quantity", 1, 1, 1000)
-
-    account_id = args.get("account_id")
-    if not isinstance(account_id, int):
-        raise ValueError("'account_id' must be an integer.")
-
-    account = session.get(Account, account_id)
-    if account is None:
-        raise ValueError(f"Account #{account_id} not found.")
-
-    # Look up contract details from the contracts table
-    contract_ref = (
-        session.execute(select(ContractRef).where(ContractRef.con_id == con_id))
+        )
         .scalars()
         .first()
     )
-    if contract_ref is None:
-        raise ValueError(f"Contract with con_id={con_id} not found in database.")
-
-    created_at = now_utc()
-    order = Order(
-        account_id=account.id,
-        symbol=contract_ref.symbol,
-        sec_type=contract_ref.sec_type,
-        exchange=contract_ref.exchange,
-        currency=contract_ref.currency,
-        side=side,
-        quantity=quantity,
-        order_type="MKT",
-        tif="DAY",
-        status="queued",
-        source=_TOOL_SOURCE,
-        con_id=con_id,
-        local_symbol=contract_ref.local_symbol,
-        trading_class=contract_ref.trading_class,
-        contract_month=contract_ref.contract_month,
-        contract_expiry=contract_ref.contract_expiry,
-        request_text=request_text,
-        created_at=created_at,
-        updated_at=created_at,
-    )
-    session.add(order)
-    session.flush()
-
-    pretrade_label = f", pretrade_job={pretrade_job_id}" if pretrade_job_id else ""
-    append_order_event(
-        session,
-        order,
-        event_type="order_created",
-        message=(
-            f"Queued by tradebot-llm for {side} {quantity} {contract_ref.symbol} "
-            f"({contract_ref.contract_month}, conId={con_id}, "
-            f"account={mask_ibkr_account(account.account)}"
-            f"{pretrade_label})."
-        ),
-    )
+    if inst is None:
+        raise ValueError(f"Instrument #{inst_id} not found in watch list #{wl_id}.")
+    session.delete(inst)
     session.commit()
-
-    account_label = account.alias or mask_ibkr_account(account.account)
-    return {
-        "order_id": order.id,
-        "status": order.status,
-        "side": order.side,
-        "quantity": order.quantity,
-        "symbol": order.symbol,
-        "contract_month": contract_ref.contract_month,
-        "contract_month_display": (
-            display_contract_month(contract_ref.contract_month)
-            if contract_ref.contract_month is not None
-            else None
-        ),
-        "account": account_label,
-        "pretrade_job_id": pretrade_job_id,
-        "worker_handoff": "worker:orders",
-    }
+    return {"ok": True}
 
 
 _TOOL_HANDLERS = {
@@ -1105,9 +1001,12 @@ _TOOL_HANDLERS = {
     "enqueue_positions_sync_job": _tool_enqueue_positions_sync_job,
     "enqueue_contracts_sync_job": _tool_enqueue_contracts_sync_job,
     "lookup_contract": _tool_lookup_contract,
-    "preview_order": _tool_preview_order,
-    "check_pretrade_job": _tool_check_pretrade_job,
-    "submit_order": _tool_submit_order,
+    "list_watch_lists": _tool_list_watch_lists,
+    "create_watch_list": _tool_create_watch_list,
+    "get_watch_list": _tool_get_watch_list,
+    "add_watch_list_instrument": _tool_add_watch_list_instrument,
+    "remove_watch_list_instrument": _tool_remove_watch_list_instrument,
+    "check_watchlist_job": _tool_check_watchlist_job,
 }
 
 

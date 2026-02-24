@@ -20,10 +20,6 @@ tasks:
     dir: frontend
     cmd: npm run dev
 
-  worker:orders:
-    desc: Start order execution worker (separate process)
-    cmd: op run --env-file=.env.{{.ENV}} -- uv run python scripts/work_order_queue.py --env {{.ENV}}
-
   worker:jobs:
     desc: Start generic job worker (dispatches by job_type)
     cmd: op run --env-file=.env.{{.ENV}} -- uv run python scripts/work_jobs.py --env {{.ENV}}

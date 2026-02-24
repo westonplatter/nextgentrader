@@ -1,12 +1,12 @@
 # Next Gen Trader
 
-Before using this project, read the [Disclaimer](#disclaimer). Some workflows can place live trades.
+Before using this project, read the [Disclaimer](#disclaimer).
 
 ## Goals
 
 1. Review the market's price action, levels, and behaviors with LLMs.
 2. Monitor a portfolio full of different strategies and risk assets.
-3. Use AI to execute live trades.
+3. Use AI to support trading decisions and operations.
 
 ## Ideal Workflow
 
@@ -14,7 +14,7 @@ Before using this project, read the [Disclaimer](#disclaimer). Some workflows ca
 2. Boot up the Worker, pull current positions, store them in the DB
 3. Boot up the API + UI, view the current portfolio
 4. Compare current positions and risk levels to strategies + groupings
-5. Execute trades to get to desired levels
+5. Plan portfolio adjustments to get to desired levels
 
 ## Brokers
 
@@ -25,10 +25,10 @@ I'm planning to use this for my actual trading operations, so:
 
 ## Disclaimer
 
-**This software executes real trades in real brokerage accounts with real money.** It is provided "as is" with no warranties of any kind.
+**This software connects to real brokerage systems and market data with real financial risk.** It is provided "as is" with no warranties of any kind.
 
 - Read and understand the code before you run it. You are fully responsible for what it does in your account.
-- The author(s) are not liable for any financial losses or unintended trades resulting from this software.
+- The author(s) are not liable for any financial losses resulting from this software.
 - This is not financial advice. Past performance is not indicative of future results.
 
 **You assume all risk.**

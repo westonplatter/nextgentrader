@@ -11,7 +11,7 @@ interface WorkerStatus {
   details: string | null;
 }
 
-const KNOWN_WORKERS = ["orders", "jobs"] as const;
+const KNOWN_WORKERS = ["jobs"] as const;
 
 const LIGHT_CLASS: Record<LightColor, string> = {
   green: "bg-green-500",
@@ -78,7 +78,6 @@ export default function WorkerStatusLights() {
     <div className="ml-auto flex items-center gap-4">
       {KNOWN_WORKERS.map((workerType) => {
         const row = statusMap[workerType] ?? fallbackStatus(workerType);
-        const label = workerType === "orders" ? "Worker Orders" : "Worker Jobs";
         return (
           <div
             key={workerType}
@@ -88,7 +87,7 @@ export default function WorkerStatusLights() {
             <span
               className={`inline-block h-2.5 w-2.5 rounded-full ${LIGHT_CLASS[row.light]}`}
             />
-            <span>{label}</span>
+            <span>Worker Jobs</span>
           </div>
         );
       })}

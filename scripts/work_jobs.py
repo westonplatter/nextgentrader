@@ -26,7 +26,8 @@ from src.models import Job
 from src.services.jobs import (
     JOB_TYPE_CONTRACTS_SYNC,
     JOB_TYPE_POSITIONS_SYNC,
-    JOB_TYPE_PRETRADE_CHECK,
+    JOB_TYPE_WATCHLIST_ADD_INSTRUMENT,
+    JOB_TYPE_WATCHLIST_QUOTES_REFRESH,
     claim_next_job,
     complete_job,
     fail_or_retry_job,
@@ -185,27 +186,45 @@ def handle_contracts_sync(job: Job, engine: Engine) -> dict:
     )
 
 
-def handle_pretrade_check(job: Job, engine: Engine) -> dict:
-    from src.services.pretrade_checks import run_pretrade_check
+def handle_watchlist_add_instrument(job: Job, engine: Engine) -> dict:
+    from src.services.watchlist_instrument_sync import fetch_and_add_instrument
 
     payload = job.payload or {}
-    con_id = payload.get("con_id")
-    if not isinstance(con_id, int):
-        raise ValueError("pretrade.check job requires integer 'con_id' in payload.")
 
-    side = payload.get("side")
-    if not isinstance(side, str) or side.upper() not in ("BUY", "SELL"):
-        raise ValueError("pretrade.check job requires 'side' (BUY or SELL) in payload.")
-
-    quantity = payload.get("quantity")
-    if not isinstance(quantity, int) or quantity < 1:
+    watch_list_id = payload.get("watch_list_id")
+    if not isinstance(watch_list_id, int):
         raise ValueError(
-            "pretrade.check job requires positive integer 'quantity' in payload."
+            "watchlist.add_instrument job requires integer 'watch_list_id' in payload."
         )
 
-    account_id = payload.get("account_id")
-    if not isinstance(account_id, int):
-        raise ValueError("pretrade.check job requires integer 'account_id' in payload.")
+    symbol = payload.get("symbol")
+    if not isinstance(symbol, str) or not symbol.strip():
+        raise ValueError(
+            "watchlist.add_instrument job requires string 'symbol' in payload."
+        )
+
+    sec_type = payload.get("sec_type")
+    if not isinstance(sec_type, str) or not sec_type.strip():
+        raise ValueError(
+            "watchlist.add_instrument job requires string 'sec_type' in payload."
+        )
+
+    exchange = payload.get("exchange")
+    if not isinstance(exchange, str) or not exchange.strip():
+        raise ValueError(
+            "watchlist.add_instrument job requires string 'exchange' in payload."
+        )
+
+    contract_month = payload.get("contract_month")
+    if contract_month is not None and not isinstance(contract_month, str):
+        raise ValueError("'contract_month' must be a string if provided.")
+
+    strike_raw = payload.get("strike")
+    strike = float(strike_raw) if strike_raw is not None else None
+
+    right = payload.get("right")
+    if right is not None and not isinstance(right, str):
+        raise ValueError("'right' must be a string if provided.")
 
     host = str(payload.get("host") or "127.0.0.1")
     port_raw = payload.get("port")
@@ -223,17 +242,61 @@ def handle_pretrade_check(job: Job, engine: Engine) -> dict:
     if isinstance(client_id_raw, int):
         client_id = client_id_raw
     else:
-        client_id = 33
+        client_id = 34
 
-    return run_pretrade_check(
+    return fetch_and_add_instrument(
         engine=engine,
         host=host,
         port=port,
         client_id=client_id,
-        con_id=con_id,
-        side=side.upper(),
-        quantity=quantity,
-        account_id=account_id,
+        watch_list_id=watch_list_id,
+        symbol=symbol.strip().upper(),
+        sec_type=sec_type.strip().upper(),
+        exchange=exchange.strip().upper(),
+        contract_month=contract_month,
+        strike=strike,
+        right=right,
+    )
+
+
+def handle_watchlist_quotes_refresh(job: Job, engine: Engine) -> dict:
+    from src.services.watchlist_quotes import refresh_watch_list_quotes
+
+    payload = job.payload or {}
+    watch_list_id = payload.get("watch_list_id")
+    if not isinstance(watch_list_id, int):
+        raise ValueError(
+            "watchlist.quotes_refresh job requires integer 'watch_list_id' in payload."
+        )
+
+    host = str(payload.get("host") or "127.0.0.1")
+    port_raw = payload.get("port")
+    client_id_raw = payload.get("client_id")
+
+    if isinstance(port_raw, int):
+        port = port_raw
+    else:
+        port = get_int_env("BROKER_TWS_PORT")
+    if port is None:
+        raise RuntimeError(
+            "BROKER_TWS_PORT is not set and no port was provided in job payload."
+        )
+
+    if isinstance(client_id_raw, int):
+        client_id = client_id_raw
+    else:
+        client_id = get_int_env("BROKER_TWS_QUOTES_CLIENT_ID", 141)
+    if client_id is None:
+        raise RuntimeError(
+            "BROKER_TWS_QUOTES_CLIENT_ID is not set and no client_id was provided in job payload."
+        )
+
+    return refresh_watch_list_quotes(
+        engine=engine,
+        watch_list_id=watch_list_id,
+        host=host,
+        port=port,
+        client_id=client_id,
     )
 
 
@@ -241,7 +304,8 @@ def get_handler(job_type: str) -> Callable[[Job, Engine], dict] | None:
     handlers: dict[str, Callable[[Job, Engine], dict]] = {
         JOB_TYPE_POSITIONS_SYNC: handle_positions_sync,
         JOB_TYPE_CONTRACTS_SYNC: handle_contracts_sync,
-        JOB_TYPE_PRETRADE_CHECK: handle_pretrade_check,
+        JOB_TYPE_WATCHLIST_ADD_INSTRUMENT: handle_watchlist_add_instrument,
+        JOB_TYPE_WATCHLIST_QUOTES_REFRESH: handle_watchlist_quotes_refresh,
     }
     return handlers.get(job_type)
 

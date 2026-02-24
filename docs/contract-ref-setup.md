@@ -79,46 +79,20 @@ ENV=dev task worker:jobs
 
 ## How the Agent Uses Contracts
 
-1. User asks to buy/sell CL.
-2. Agent calls `preview_cl_order` which reads active CL contracts from the `contracts` table, selects the appropriate month, and enqueues a `pretrade.check` job.
-3. Agent calls `check_pretrade_job` to poll margin/pricing results.
-4. Agent calls `submit_cl_order` with the `pretrade_job_id` to queue the order.
+1. User asks for contract info (for example front month or available expiries).
+2. Agent calls `lookup_contract` to read active contracts from the `contracts` table.
+3. If the user asks to track an instrument, agent can enqueue `watchlist.add_instrument` with resolved contract data.
 
-The agent **never imports `ib_async`**. All IB interaction happens in workers.
-
-## Pre-Trade Checks
-
-### Service: `src/services/pretrade_checks.py`
-
-`run_pretrade_check(engine, host, port, client_id, con_id, side, quantity, account_id)`:
-
-- Looks up the contract from DB by `con_id`
-- Connects to IB, qualifies the contract, runs `whatIfOrder` for margin impact
-- Fetches reference price and computes notional
-- Returns margin before/after, commission, reference price, and notional
-
-### Job Type: `pretrade.check`
-
-Payload:
-
-```json
-{
-  "con_id": 12345,
-  "side": "BUY",
-  "quantity": 1,
-  "account_id": 1
-}
-```
+The agent **never imports `ib_async`**. All IB interaction happens in `worker:jobs`.
 
 ## Key Files
 
-| File                                                     | Role                                                      |
-| -------------------------------------------------------- | --------------------------------------------------------- |
-| `src/models.py`                                          | `ContractRef` model                                       |
-| `alembic/versions/20260220000000_add_contracts_table.py` | Migration                                                 |
-| `src/services/contract_sync.py`                          | IB -> DB sync logic                                       |
-| `src/services/pretrade_checks.py`                        | Margin/pricing checks via IB                              |
-| `src/services/cl_contracts.py`                           | Pure utility functions (expiry parsing, month formatting) |
-| `src/services/jobs.py`                                   | Job type constants                                        |
-| `scripts/work_jobs.py`                                   | Job handlers for `contracts.sync` and `pretrade.check`    |
-| `src/services/tradebot_agent.py`                         | Agent tools (reads DB, enqueues jobs, never touches IB)   |
+| File                                                     | Role                                                                    |
+| -------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `src/models.py`                                          | `ContractRef` model                                                     |
+| `alembic/versions/20260220000000_add_contracts_table.py` | Migration                                                               |
+| `src/services/contract_sync.py`                          | IB -> DB sync logic                                                     |
+| `src/services/cl_contracts.py`                           | Pure utility functions (expiry parsing, month formatting)               |
+| `src/services/jobs.py`                                   | Job type constants                                                      |
+| `scripts/work_jobs.py`                                   | Job handlers for `positions.sync`, `contracts.sync`, and watchlist jobs |
+| `src/services/tradebot_agent.py`                         | Agent tools (reads DB, enqueues jobs, never touches IB)                 |

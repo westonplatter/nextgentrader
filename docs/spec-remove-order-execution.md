@@ -21,24 +21,24 @@ After this change, the system remains useful for:
 - Dropping historical `orders` / `order_events` data in this phase.
 - Removing IBKR connectivity required for non-execution workflows (positions/contracts).
 
-## Current Execution Surfaces
+## Status (as of February 23, 2026)
 
-- CLI live execution: `scripts/execute_cl_buy_or_sell_continous_market.py`
-- Worker-based broker submit path: `scripts/work_order_queue.py` + `task worker:orders`
-- API order mutation:
-  - `POST /api/v1/orders`
-  - `POST /api/v1/orders/{order_id}/cancel`
-- Tradebot execution tool path in `src/services/tradebot_agent.py`:
-  - `preview_order`
-  - `check_pretrade_job`
-  - `submit_order`
-- Pre-trade margin checks used for execution:
-  - `src/services/pretrade_checks.py`
-  - `pretrade.check` handler in `scripts/work_jobs.py`
+- Phase 1 complete:
+  - direct execution CLI removed
+  - order worker/task removed
+  - order mutation API removed
+  - tradebot execution tools removed
+- Phase 2 complete:
+  - `pretrade.check` job path removed
+  - execution-only helper modules removed (`src/services/pretrade_checks.py`, `src/services/order_queue.py`)
+- Phase 3 complete:
+  - frontend cancel UX removed from orders views
+  - worker status lights aligned to `worker:jobs` only
+  - docs refreshed to reflect non-execution behavior
 
 ## Target State
 
-- No code path calls broker order submit APIs (`ib.placeOrder`).
+- No code path calls broker order submit APIs (`ib.placeOrder`, `whatIfOrder`).
 - No first-party UI/API/chat path can create, queue, submit, or cancel orders.
 - Order history remains queryable (read-only) for audit/debug.
 - Jobs worker continues for non-execution jobs.
@@ -68,68 +68,75 @@ After this change, the system remains useful for:
 
 1. Remove direct execution CLI.
 
-- Delete `scripts/execute_cl_buy_or_sell_continous_market.py`.
-- Remove references in docs and README.
+- Status: complete.
+- Deleted `scripts/execute_cl_buy_or_sell_continous_market.py`.
+- Removed direct-execution references in docs and README.
 
 2. Disable worker-based execution.
 
-- Remove `worker:orders` task from `Taskfile.yaml`.
-- Remove `scripts/work_order_queue.py` entrypoint (delete file).
+- Status: complete.
+- Removed `worker:orders` task from `Taskfile.yaml`.
+- Deleted `scripts/work_order_queue.py`.
 
 3. Remove order mutation API.
 
-- In `src/api/routers/orders.py`, remove:
-  - `create_order`
-  - `cancel_order`
+- Status: complete.
+- Removed create/cancel endpoints from `src/api/routers/orders.py`.
 - Keep read-only list/detail/events endpoints.
 
 4. Remove tradebot execution tools.
 
-- In `src/services/tradebot_agent.py`:
-  - remove `preview_order`, `check_pretrade_job`, `submit_order` tool specs
-  - remove tool handlers and mappings
-  - update `_SYSTEM_PROMPT` to disallow execution language and behavior
+- Status: complete.
+- Removed `preview_order`, `check_pretrade_job`, and `submit_order` from tool specs and handlers.
+- Updated `_SYSTEM_PROMPT` to explicitly state execution is disabled.
 
 ### Phase 2: Execution Dependency Cleanup
 
 1. Remove pretrade job path.
 
-- Remove `JOB_TYPE_PRETRADE_CHECK` from `src/services/jobs.py`.
-- Remove `handle_pretrade_check` and routing from `scripts/work_jobs.py`.
-- Remove `src/services/pretrade_checks.py` if no longer referenced.
+- Status: complete.
+- Removed `JOB_TYPE_PRETRADE_CHECK` from `src/services/jobs.py`.
+- Removed `handle_pretrade_check` and handler routing from `scripts/work_jobs.py`.
+- Deleted `src/services/pretrade_checks.py`.
 
 2. Remove now-unused execution helpers/imports.
 
-- Clean up `src/services/order_queue.py` usage if only used by removed write paths.
-- Remove stale imports and constants in API/services.
+- Status: complete.
+- Deleted `src/services/order_queue.py` (no remaining imports).
+- Removed stale imports/constants in API and tradebot service.
 
 3. Keep read models stable.
 
-- Keep `src/models.py` order entities until a later archival/drop decision.
+- Status: complete.
+- Kept `Order` / `OrderEvent` models and read APIs intact.
 
 ### Phase 3: UI + Docs Hardening
 
 1. Frontend cleanup.
 
-- Remove cancel actions from:
+- Status: complete.
+- Removed cancel actions from:
   - `frontend/src/components/OrdersTable.tsx`
   - `frontend/src/components/OrdersSideTable.tsx`
-- Update `TradebotChat` copy to remove “queue orders” language.
-- Update worker status lights if `orders` worker is removed from expected list.
+- Updated `TradebotChat` copy to remove order-queue wording.
+- Updated worker status lights to monitor `worker:jobs` only.
 
 2. Documentation updates.
 
-- Update:
-  - `README.md` goals/workflow/disclaimer wording that implies live execution
+- Status: complete for this decommission scope.
+- Updated:
+  - `README.md` goals/workflow/disclaimer wording that implied live execution
   - `docs/tradebot-chatbot.md`
   - `docs/tradebot-workers.md`
-  - delete or archive `docs/execute-future-cl-order-script.md`
+  - `docs/tradebot-langgraph-implementation.md`
+  - `docs/contract-ref-setup.md`
+  - removed legacy direct-execution runbook content
 
 ## Acceptance Criteria
 
 1. No executable order submit path remains.
 
-- `rg "ib\\.placeOrder"` returns no repo-owned execution path.
+- `rg "ib\\.placeOrder|whatIfOrder"` returns no repo-owned execution path.
 
 2. API cannot mutate orders.
 

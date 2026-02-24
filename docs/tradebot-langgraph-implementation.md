@@ -2,14 +2,15 @@
 
 ## Summary
 
-This change replaces rule-based chat intent parsing with an LLM-driven LangGraph workflow.
+Tradebot chat uses an LLM-driven LangGraph workflow with explicit function tools.
+As of February 23, 2026, order execution tools were removed.
 
 Tradebot now:
 
 - uses conversation history (not only last message)
 - uses tool calls for DB reads and operational actions
-- can enqueue jobs and queue orders through explicit tools
-- keeps durable execution in existing workers (`worker:jobs`, `worker:orders`)
+- enqueues non-execution jobs through `worker:jobs`
+- keeps order-related access read-only
 
 ## What Was Built
 
@@ -52,28 +53,34 @@ Runtime constraints:
 
 ## Tool Surface
 
-| Function                     | Description                                                 | Any Guardrails                                                                                                                                    |
-| ---------------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `list_accounts`              | Lists available brokerage accounts for routing.             | Read-only DB query.                                                                                                                               |
-| `list_positions`             | Returns current positions from the database.                | Read-only DB query. Optional `limit` constrained to 1-200.                                                                                        |
-| `list_jobs`                  | Returns recent job queue records.                           | Read-only DB query. `limit` constrained to 1-200.                                                                                                 |
-| `list_orders`                | Returns recent orders and optional recent events per order. | Read-only DB query. `limit` constrained to 1-200; `events_per_order` constrained to 1-20.                                                         |
-| `enqueue_positions_sync_job` | Enqueues a `positions.sync` job for `worker:jobs`.          | Writes to `jobs` queue only. `max_attempts` constrained to 1-10.                                                                                  |
-| `submit_cl_order`            | Queues a CL futures order for `worker:orders`.              | Requires `operator_confirmed=true`; validates side/quantity; resolves account; requires `BROKER_TWS_PORT`; qualifies CL contract before queueing. |
+| Function                       | Description                                                 | Any Guardrails                                                                            |
+| ------------------------------ | ----------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `list_accounts`                | Lists available brokerage accounts for routing.             | Read-only DB query.                                                                       |
+| `list_positions`               | Returns current positions from the database.                | Read-only DB query. Optional `limit` constrained to 1-200.                                |
+| `list_jobs`                    | Returns recent job queue records.                           | Read-only DB query. `limit` constrained to 1-200.                                         |
+| `list_orders`                  | Returns recent orders and optional recent events per order. | Read-only DB query. `limit` constrained to 1-200; `events_per_order` constrained to 1-20. |
+| `lookup_contract`              | Returns contract info from DB cache.                        | Read-only DB query; no broker side effects.                                               |
+| `enqueue_positions_sync_job`   | Enqueues a `positions.sync` job for `worker:jobs`.          | Writes to `jobs` queue only. `max_attempts` constrained to 1-10.                          |
+| `enqueue_contracts_sync_job`   | Enqueues a `contracts.sync` job for `worker:jobs`.          | Writes to `jobs` queue only; symbol/sec_type validated before enqueue.                    |
+| `list_watch_lists`             | Lists watch lists and counts.                               | Read-only DB query.                                                                       |
+| `create_watch_list`            | Creates a watch list.                                       | Writes local DB only.                                                                     |
+| `get_watch_list`               | Reads one watch list and instruments.                       | Read-only DB query.                                                                       |
+| `add_watch_list_instrument`    | Enqueues instrument add for watch list.                     | Queues `watchlist.add_instrument` job; worker resolves/qualifies contract.                |
+| `remove_watch_list_instrument` | Removes one watch list instrument.                          | Writes local DB only.                                                                     |
 
 ## Safety and Side Effects
 
-- `submit_cl_order` requires `operator_confirmed=true`.
-- Order tool queues an `orders` row; it does not bypass workers.
-- Position sync tool enqueues `positions.sync` jobs for `worker:jobs`.
+- Execution-capable tools (`preview_order`, `check_pretrade_job`, `submit_order`) are removed.
+- The system prompt explicitly tells the model that order execution is disabled.
+- Job tools enqueue non-execution jobs (`positions.sync`, `contracts.sync`, `watchlist.add_instrument`).
 - Tool failures are returned to the LLM as structured tool error payloads.
 - DB session rolls back on tool exceptions.
 
 ## Operational Notes
 
-- Contract qualification for CL still requires TWS/Gateway connectivity.
-- Tool-driven order queueing still uses existing `Order` + `OrderEvent` lifecycle.
-- Existing jobs/orders side panels remain valid because data surfaces did not change.
+- IBKR connectivity is still required for sync jobs handled by `worker:jobs`.
+- `orders` and `order_events` tables remain for historical read-only visibility.
+- Existing jobs/orders UI side panels still read the same API surfaces.
 
 ## Validation
 

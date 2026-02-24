@@ -6,7 +6,7 @@ import OrdersSideTable from "./OrdersSideTable";
 
 const QUICK_PROMPTS = [
   "Show me current positions",
-  "Buy 1 more CL contracts",
+  "Show CL front-month contracts",
   "Status for latest orders",
 ];
 const POSITION_SYNC_PROMPT = "Refresh positions now";
@@ -105,7 +105,7 @@ export default function TradebotChat() {
           <div className="min-h-0 flex-1 overflow-y-auto rounded border border-gray-300 bg-white p-4">
             {messages.length === 0 && (
               <p className="text-sm text-gray-500">
-                Ask about positions, queue CL orders, or check order progress.
+                Ask about positions, contracts, watch lists, or order history.
               </p>
             )}
             <div className="space-y-3">
@@ -136,7 +136,7 @@ export default function TradebotChat() {
               type="text"
               value={input}
               onChange={(event) => setInput(event.target.value)}
-              placeholder="e.g. buy 1 more CL contracts account 1"
+              placeholder="e.g. show CL front month"
               className="flex-1 rounded border border-gray-300 px-3 py-2 text-sm"
             />
             <button

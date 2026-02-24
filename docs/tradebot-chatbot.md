@@ -4,7 +4,8 @@
 
 `/api/v1/tradebot/chat` is the operator chat control surface.
 
-It now runs as an LLM conversation workflow with LangGraph and explicit function tools.
+It runs as an LLM conversation workflow with LangGraph and explicit function tools.
+Order execution is disabled.
 
 ## Architecture
 
@@ -24,34 +25,40 @@ Read tools:
 - `list_positions`
 - `list_jobs`
 - `list_orders`
+- `lookup_contract`
+- `list_watch_lists`
+- `get_watch_list`
 
 Action tools:
 
 - `enqueue_positions_sync_job`
-- `submit_cl_order`
+- `enqueue_contracts_sync_job`
+- `create_watch_list`
+- `add_watch_list_instrument`
+- `remove_watch_list_instrument`
 
 ## Safety Constraints
 
-- `submit_cl_order` requires `operator_confirmed=true` in tool args.
-- Orders are queued in DB for `worker:orders`; the chat endpoint does not submit directly to broker.
-- Positions sync is queued for `worker:jobs` via `positions.sync` jobs.
+- Tradebot has no execution-capable tool (`submit_order`, `preview_order`, `check_pretrade_job` were removed).
+- If asked to place/queue/cancel orders, the assistant responds with a read-only alternative.
+- Orders API is read-only (`GET` endpoints only).
+- Side-effect jobs are limited to `worker:jobs` handlers.
 - If an action tool fails, the tool call returns an explicit error payload back to the model.
 
 ## Environment Variables
 
 - `TRADEBOT_LLM_API_KEY` (or fallback `OPENAI_API_KEY`)
-- `TRADEBOT_LLM_MODEL` (default `gpt-4.1-mini`)
+- `TRADEBOT_LLM_MODEL` (default `gpt-5-mini`)
 - `TRADEBOT_LLM_BASE_URL` (default `https://api.openai.com/v1`)
 - `TRADEBOT_LLM_TIMEOUT_SECONDS` (default `45`)
-- `BROKER_TWS_PORT` (required for CL qualification when queueing orders)
+- `BROKER_TWS_PORT` (required for jobs that connect to IBKR: positions/contracts/watchlist instrument fetch)
 - `BROKER_CL_MIN_DAYS_TO_EXPIRY` (default `7`; skip CL contracts too close to expiry)
-- `TRADEBOT_QUALIFY_CLIENT_ID` (default `29`)
 
 ## UI Components
 
 - `TradebotChat` main chat panel
 - `JobsTable` side panel (job timing + actions)
-- `OrdersSideTable` side panel (order timing + status/fill)
+- `OrdersSideTable` side panel (read-only order timing + status/fill)
 - Header worker lights from `/api/v1/workers/status`
 
 ## Key Files
