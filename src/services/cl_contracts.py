@@ -170,7 +170,10 @@ def _infer_year_from_code(year_code: str, fallback_year: int | None) -> int:
     digit = int(year_code)
     if fallback_year is None:
         current_year = dt.date.today().year
-        return (current_year // 10) * 10 + digit
+        base = (current_year // 10) * 10 + digit
+        if base < current_year:
+            base += 10
+        return base
 
     decade = (fallback_year // 10) * 10
     candidates = [decade - 10 + digit, decade + digit, decade + 10 + digit]
