@@ -15,7 +15,6 @@ dependencies = [
   "pandera[pandas]>=0.20",
   "fastapi>=0.115",
   "uvicorn[standard]>=0.34",
-  "ipdb>=0.13.13",
 ]
 
 [build-system]
@@ -25,5 +24,8 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src"]
 
+[tool.uv]
+default-groups = []
+
 [dependency-groups]
-dev = ["typer>=0.24.1"]
+dev = ["typer>=0.24.1", "ipdb>=0.13.13"]

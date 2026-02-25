@@ -14,6 +14,7 @@ from dotenv import load_dotenv
 from ib_async import IB
 
 from src.services.ibkr_select_contracts import select_contract_for_watchlist
+from src.utils.env_vars import get_int_env
 
 logger = logging.getLogger("scripts:fetch-cl-contracts")
 
@@ -34,12 +35,9 @@ def main() -> int:
     )
 
     host = "127.0.0.1"
-    # port = get_int_env("BROKER_TWS_PORT")
-    # if port is None:
-    # raise RuntimeError("BROKER_TWS_PORT is not set.")
-
-    port = 7496  # , clientId=2, timeout=30)
-    client_id = 50
+    # Use environment variables if set; fall back to standard local TWS defaults.
+    port = get_int_env("BROKER_TWS_PORT", 7496)
+    client_id = get_int_env("BROKER_TWS_CLIENT_ID", 50)
 
     ib = IB()
     try:
@@ -50,7 +48,7 @@ def main() -> int:
             symbol="CL",
             sec_type="FOP",
             exchange="NYMEX",
-            contract_month="202606",
+            contract_month="2026-06",
             strike=65.0,
             right="C",
         )

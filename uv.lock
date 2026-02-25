@@ -633,7 +633,6 @@ dependencies = [
     { name = "alembic" },
     { name = "fastapi" },
     { name = "ib-async" },
-    { name = "ipdb" },
     { name = "langgraph" },
     { name = "pandera", extra = ["pandas"] },
     { name = "psycopg2-binary" },
@@ -644,6 +643,7 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "ipdb" },
     { name = "typer" },
 ]
 
@@ -652,7 +652,6 @@ requires-dist = [
     { name = "alembic", specifier = ">=1.14" },
     { name = "fastapi", specifier = ">=0.115" },
     { name = "ib-async", specifier = ">=2.1.0" },
-    { name = "ipdb", specifier = ">=0.13.13" },
     { name = "langgraph", specifier = ">=0.2.76" },
     { name = "pandera", extras = ["pandas"], specifier = ">=0.20" },
     { name = "psycopg2-binary", specifier = ">=2.9" },
@@ -662,7 +661,10 @@ requires-dist = [
 ]
 
 [package.metadata.requires-dev]
-dev = [{ name = "typer", specifier = ">=0.24.1" }]
+dev = [
+    { name = "ipdb", specifier = ">=0.13.13" },
+    { name = "typer", specifier = ">=0.24.1" },
+]
 
 [[package]]
 name = "numpy"

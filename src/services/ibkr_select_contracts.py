@@ -12,6 +12,7 @@ from ib_async import IB, Contract, Index
 
 from src.services.cl_contracts import (
     format_contract_month_from_expiry,
+    normalize_contract_month_input,
     parse_contract_expiry,
 )
 
@@ -368,11 +369,11 @@ class FutureOptionContractSelector(ContractSelector):
     def select(self, ib: IB, request: ContractSelectionRequest) -> tuple[Contract, int]:
         spec = self._build_fop_spec(ib, request)
         _qualify_contracts(ib, spec)
-        contracts = _request_contracts(ib, spec)
-        contracts = self.filter_matches(contracts, request)
-        contracts = self.sort_matches(contracts, request)
-        self.validate_matches(contracts, request)
-        return contracts[0], len(contracts)
+        if spec.conId is None:
+            raise RuntimeError(
+                f"No FOP contract found for {_build_lookup_context(request)}."
+            )
+        return spec, 1
 
     def _build_fop_spec(self, ib: IB, request: ContractSelectionRequest) -> Contract:
         index = Index(
@@ -381,6 +382,7 @@ class FutureOptionContractSelector(ContractSelector):
             currency=request.currency,
         )
         ib.qualifyContracts(index)
+
         chains = ib.reqSecDefOptParams(
             underlyingSymbol=index.symbol,
             futFopExchange=index.exchange,
@@ -584,11 +586,12 @@ def select_contract_for_watchlist(
     strike: float | None = None,
     right: str | None = None,
 ) -> tuple[Contract, int]:
+    normalized_contract_month = normalize_contract_month_input(contract_month)
     request = ContractSelectionRequest(
         symbol=symbol,
         sec_type=sec_type.upper(),
         exchange=exchange,
-        contract_month=contract_month,
+        contract_month=normalized_contract_month,
         strike=strike,
         right=right,
     )
