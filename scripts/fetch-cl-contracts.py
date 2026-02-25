@@ -14,7 +14,6 @@ from dotenv import load_dotenv
 from ib_async import IB
 
 from src.services.ibkr_select_contracts import select_contract_for_watchlist
-from src.utils.env_vars import get_int_env
 
 logger = logging.getLogger("scripts:fetch-cl-contracts")
 
