@@ -89,7 +89,9 @@ def _dedupe_by_con_id(contracts: Iterable[Contract]) -> list[Contract]:
     return result
 
 
-def _qualify_contracts(ib: IB, spec: Contract) -> list[Contract]:
+def _qualify_contracts(ib: IB, spec: Contract) -> Contract:
+    # ib.qualifyContracts mutates the provided Contract in place; return that same
+    # single qualified Contract for downstream use.
     ib.qualifyContracts(spec)
     return spec
 
@@ -355,7 +357,7 @@ class OptionContractSelector(ContractSelector):
             )
 
 
-class FutureOptionContractSelector(OptionContractSelector):
+class FutureOptionContractSelector(ContractSelector):
     sec_type = "FOP"
 
     def build_spec(self, request: ContractSelectionRequest) -> Contract:
@@ -367,9 +369,9 @@ class FutureOptionContractSelector(OptionContractSelector):
         spec = self._build_fop_spec(ib, request)
         _qualify_contracts(ib, spec)
         contracts = _request_contracts(ib, spec)
-        # contracts = self.filter_matches(contracts, request)
-        # contracts = self.sort_matches(contracts, request)
-        # self.validate_matches(contracts, request)
+        contracts = self.filter_matches(contracts, request)
+        contracts = self.sort_matches(contracts, request)
+        self.validate_matches(contracts, request)
         return contracts[0], len(contracts)
 
     def _build_fop_spec(self, ib: IB, request: ContractSelectionRequest) -> Contract:
@@ -422,6 +424,45 @@ class FutureOptionContractSelector(OptionContractSelector):
             spec.multiplier = str(multiplier).strip()
 
         return spec
+
+    def filter_matches(
+        self, contracts: list[Contract], request: ContractSelectionRequest
+    ) -> list[Contract]:
+        normalized_right = _normalize_right(request.right)
+        return [
+            contract
+            for contract in contracts
+            if _contract_month_matches(contract, request.contract_month)
+            and _strike_matches(contract, request.strike)
+            and _option_right_matches(contract, normalized_right)
+        ]
+
+    def sort_matches(
+        self, contracts: list[Contract], request: ContractSelectionRequest
+    ) -> list[Contract]:
+        return sorted(
+            contracts,
+            key=lambda contract: (
+                *_contract_expiry_sort_key(contract),
+                float(contract.strike or 0.0),
+                contract.right or "",
+            ),
+        )
+
+    def validate_matches(
+        self, contracts: list[Contract], request: ContractSelectionRequest
+    ) -> None:
+        super().validate_matches(contracts, request)
+        if len(contracts) > 1:
+            context = _build_lookup_context(request)
+            candidates = "; ".join(
+                _describe_contract(contract) for contract in contracts[:5]
+            )
+            raise RuntimeError(
+                f"Ambiguous option selection for {context}. "
+                f"Found {len(contracts)} matches. Top candidates: {candidates}. "
+                "Provide contract_month, strike, and right to select one contract."
+            )
 
     def _filter_chain_candidates(
         self, chains: list[Any], request: ContractSelectionRequest

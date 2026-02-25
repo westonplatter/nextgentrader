@@ -62,7 +62,6 @@ def contract_display_name(
     contract_month: str | None = None,
     exchange: str | None = None,
     trading_class: str | None = None,
-    last_trade_date: str | None = None,
     include_exchange: bool = False,
 ) -> str:
     """Build a compact, IBKR TWS-style contract label.
